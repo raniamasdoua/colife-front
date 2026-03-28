@@ -1,10 +1,8 @@
-import type { RegisterRequest, RegisterResponse } from "../types/auth";
+import type { RegisterRequest } from "../types/auth";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-export async function register(
-  data: RegisterRequest
-): Promise<RegisterResponse> {
+export async function register(data: RegisterRequest): Promise<void> {
   const response = await fetch(`${API_URL}/auth/register`, {
     method: "POST",
     headers: {
@@ -15,13 +13,12 @@ export async function register(
 
   if (!response.ok) {
     if (response.status === 409) {
-      throw new Error("Email déjà utilisé");
+      throw new Error("Cet email est déjà utilisé");
     }
     if (response.status === 400) {
-      throw new Error("Données invalides");
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.message ?? "Données invalides. Vérifiez le format de l'email (@entreprise.com) et les critères du mot de passe.");
     }
-    throw new Error("Erreur serveur");
+    throw new Error("Une erreur serveur est survenue. Réessayez plus tard.");
   }
-
-  return response.json();
 }
