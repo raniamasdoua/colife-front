@@ -6,6 +6,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { Navigation } from "./components/layout/Navigation";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const AUTH_ROUTES = ["/login", "/register"];
 
@@ -14,19 +15,44 @@ function AppContent() {
   const isAuthPage = AUTH_ROUTES.includes(location.pathname);
 
   return (
-    <div className={`min-h-screen bg-slate-50 text-slate-900 ${isAuthPage ? "" : "pb-16"}`}>
-      <Routes>
-        <Route path="/" element={<Navigate to="/home" replace />} />
-
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/planning" element={<PlanningPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-      </Routes>
-
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+      {/* Top nav + bottom tabs — hidden on auth pages */}
       {!isAuthPage && <Navigation />}
+
+      {/* Main content — leave room for fixed bottom tab bar */}
+      <main className={!isAuthPage ? "flex-1 pb-16" : "flex-1"}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/home" replace />} />
+
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/planning"
+            element={
+              <ProtectedRoute>
+                <PlanningPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+        </Routes>
+      </main>
     </div>
   );
 }
