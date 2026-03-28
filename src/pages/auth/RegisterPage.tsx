@@ -5,10 +5,12 @@ import { register } from "../../services/authService";
 import { validatePassword } from "../../utils/passwordValidation";
 import { PasswordStrengthIndicator } from "../../components/ui/PasswordStrengthIndicator";
 
-const inputBase =
-  "w-full py-2.5 border border-gray-200 rounded-lg text-sm bg-white " +
-  "focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent " +
-  "transition placeholder:text-gray-400 disabled:opacity-50 disabled:bg-gray-50";
+const inputClass =
+  "w-full py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 " +
+  "focus:outline-none focus:bg-white focus:ring-2 focus:ring-violet-400 focus:border-transparent " +
+  "transition placeholder:text-gray-300 disabled:opacity-50";
+
+const labelClass = "block text-xs font-semibold text-gray-600 mb-1";
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -38,13 +40,7 @@ export function RegisterPage() {
     e.preventDefault();
     setError("");
 
-    if (
-      !formData.firstName ||
-      !formData.lastName ||
-      !formData.email ||
-      !formData.password ||
-      !formData.confirmPassword
-    ) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword) {
       setError("Veuillez remplir tous les champs obligatoires.");
       return;
     }
@@ -82,38 +78,42 @@ export function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md">
+    /* Page background: très léger dégradé rose → bleu (quasi-blanc) */
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-blue-50 flex flex-col items-center justify-center px-4 py-8">
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl mb-4 shadow-lg">
-            <span className="text-white text-xl font-bold tracking-wide">CL</span>
+      {/* ── Card ───────────────────────────────────────────────────────── */}
+      <div className="w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl shadow-violet-200/60">
+
+        {/* ── Gradient header (haut de la carte) ────────────────────── */}
+        <div className="bg-gradient-to-r from-blue-500 via-violet-500 to-pink-600 pt-8 pb-10 px-6 text-center">
+          {/* Logo */}
+          <div className="inline-flex items-center justify-center w-13 h-13 bg-white/25 rounded-2xl mb-3 p-3">
+            <span className="text-white font-bold text-lg leading-none">CL</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Rejoignez CoLife</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-xl font-bold text-white mt-2 leading-tight">
+            Rejoignez CoLife
+          </h1>
+          <p className="text-sm text-white/75 mt-1.5">
             Créez votre compte et commencez à organiser des activités
           </p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        {/* ── Formulaire (bas de la carte, fond blanc) ──────────────── */}
+        <div className="bg-white px-6 pt-6 pb-6">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
 
             {/* Prénom / Nom */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Prénom <span className="text-red-400">*</span>
-                </label>
+                <label htmlFor="firstName" className={labelClass}>Prénom</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300 pointer-events-none" />
                   <input
                     id="firstName"
                     type="text"
                     placeholder="Jean"
                     autoComplete="given-name"
-                    className={`${inputBase} pl-9 pr-3`}
+                    className={`${inputClass} pl-8 pr-2`}
                     value={formData.firstName}
                     onChange={handleChange("firstName")}
                     disabled={loading}
@@ -122,15 +122,13 @@ export function RegisterPage() {
               </div>
 
               <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Nom <span className="text-red-400">*</span>
-                </label>
+                <label htmlFor="lastName" className={labelClass}>Nom</label>
                 <input
                   id="lastName"
                   type="text"
                   placeholder="Dupont"
                   autoComplete="family-name"
-                  className={`${inputBase} px-3`}
+                  className={`${inputClass} px-3`}
                   value={formData.lastName}
                   onChange={handleChange("lastName")}
                   disabled={loading}
@@ -140,38 +138,33 @@ export function RegisterPage() {
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Email professionnel <span className="text-red-400">*</span>
-              </label>
+              <label htmlFor="email" className={labelClass}>Email professionnel</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300 pointer-events-none" />
                 <input
                   id="email"
                   type="email"
                   placeholder="votre.email@entreprise.com"
                   autoComplete="email"
-                  className={`${inputBase} pl-9 pr-3`}
+                  className={`${inputClass} pl-8 pr-3`}
                   value={formData.email}
                   onChange={handleChange("email")}
                   disabled={loading}
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-400">Format requis : @entreprise.com</p>
             </div>
 
             {/* Mot de passe */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Mot de passe <span className="text-red-400">*</span>
-              </label>
+              <label htmlFor="password" className={labelClass}>Mot de passe</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300 pointer-events-none" />
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Créer un mot de passe sécurisé"
                   autoComplete="new-password"
-                  className={`${inputBase} pl-9 pr-10`}
+                  className={`${inputClass} pl-8 pr-9`}
                   value={formData.password}
                   onChange={handleChange("password")}
                   disabled={loading}
@@ -179,7 +172,7 @@ export function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -187,25 +180,23 @@ export function RegisterPage() {
               </div>
 
               {formData.password && (
-                <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <PasswordStrengthIndicator password={formData.password} />
+                <div className="mt-2">
+                  <PasswordStrengthIndicator password={formData.password} compact />
                 </div>
               )}
             </div>
 
             {/* Confirmer le mot de passe */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Confirmer le mot de passe <span className="text-red-400">*</span>
-              </label>
+              <label htmlFor="confirmPassword" className={labelClass}>Confirmer le mot de passe</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300 pointer-events-none" />
                 <input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Retapez votre mot de passe"
                   autoComplete="new-password"
-                  className={`${inputBase} pl-9 pr-10`}
+                  className={`${inputClass} pl-8 pr-9`}
                   value={formData.confirmPassword}
                   onChange={handleChange("confirmPassword")}
                   disabled={loading}
@@ -213,7 +204,7 @@ export function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition"
                   tabIndex={-1}
                 >
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -226,18 +217,18 @@ export function RegisterPage() {
               <input
                 id="terms"
                 type="checkbox"
-                className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-purple-600 cursor-pointer shrink-0"
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-violet-600 cursor-pointer shrink-0"
                 checked={acceptTerms}
                 onChange={(e) => setAcceptTerms(e.target.checked)}
                 disabled={loading}
               />
-              <label htmlFor="terms" className="text-sm text-gray-500 leading-snug cursor-pointer select-none">
+              <label htmlFor="terms" className="text-xs text-gray-500 leading-snug cursor-pointer select-none">
                 J'accepte les{" "}
-                <span className="text-purple-600 hover:underline cursor-pointer font-medium">
+                <span className="text-violet-600 font-semibold hover:underline">
                   conditions d'utilisation
                 </span>{" "}
                 et la{" "}
-                <span className="text-purple-600 hover:underline cursor-pointer font-medium">
+                <span className="text-violet-600 font-semibold hover:underline">
                   politique de confidentialité
                 </span>
               </label>
@@ -245,7 +236,7 @@ export function RegisterPage() {
 
             {/* Message d'erreur */}
             {error && (
-              <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600">
+              <div className="p-2.5 bg-red-50 border border-red-100 rounded-xl text-xs text-red-500">
                 {error}
               </div>
             )}
@@ -254,7 +245,7 @@ export function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-2.5 px-4 rounded-lg font-medium text-sm transition disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 via-violet-500 to-pink-600 hover:opacity-90 active:opacity-80 text-white py-3 px-4 rounded-xl font-semibold text-sm transition shadow-lg shadow-violet-400/35 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -270,9 +261,9 @@ export function RegisterPage() {
             </button>
           </form>
 
-          {/* Séparateur + lien connexion */}
-          <div className="mt-6">
-            <div className="relative flex items-center gap-3">
+          {/* Séparateur + Se connecter */}
+          <div className="mt-5">
+            <div className="relative flex items-center gap-3 mb-3">
               <div className="flex-1 border-t border-gray-100" />
               <span className="text-xs text-gray-400 whitespace-nowrap">Vous avez déjà un compte ?</span>
               <div className="flex-1 border-t border-gray-100" />
@@ -282,19 +273,19 @@ export function RegisterPage() {
               type="button"
               disabled={loading}
               onClick={() => navigate("/login")}
-              className="w-full mt-4 flex items-center justify-center gap-2 border border-gray-200 text-gray-600 py-2.5 px-4 rounded-lg font-medium text-sm hover:bg-gray-50 transition disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-500 py-2.5 px-4 rounded-xl font-medium text-sm hover:bg-gray-50 transition disabled:opacity-50"
             >
               <LogIn className="w-4 h-4" />
               Se connecter
             </button>
           </div>
         </div>
-
-        {/* Footer */}
-        <p className="text-center text-xs text-gray-400 mt-6">
-          CoLife est une plateforme dédiée aux activités internes de votre entreprise
-        </p>
       </div>
+
+      {/* Footer */}
+      <p className="text-center text-xs text-gray-400 mt-6 max-w-xs">
+        CoLife est une plateforme dédiée aux activités internes de votre entreprise
+      </p>
     </div>
   );
 }
