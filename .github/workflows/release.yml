@@ -1,0 +1,61 @@
+name: Release Front
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm install
+
+      - name: Bump version
+        id: version
+        run: |
+          chmod +x scripts/bump-version.sh
+          ./scripts/bump-version.sh
+
+      - name: Generate changelog
+        run: |
+          chmod +x scripts/generate-changelog.sh
+          ./scripts/generate-changelog.sh ${{ steps.version.outputs.VERSION }}
+
+      - name: Commit version + changelog
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add package.json CHANGELOG.md
+          git commit -m "chore(release): v${{ steps.version.outputs.VERSION }}"
+          git tag v${{ steps.version.outputs.VERSION }}
+          git push origin main --tags
+
+      - name: Build project
+        run: npm run build
+
+      - name: Zip dist
+        run: zip -r dist.zip dist
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: Release v${{ steps.version.outputs.VERSION }}
+          body_path: CHANGELOG.md
+          files: dist.zip
