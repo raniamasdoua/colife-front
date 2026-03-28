@@ -1,5 +1,8 @@
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Home, CalendarDays, User, Bell } from "lucide-react";
+import { getMe } from "../../services/userService";
+import { getInitials } from "../../utils/userDisplay";
 
 const tabs = [
   { to: "/home", icon: Home, label: "Accueil" },
@@ -9,6 +12,24 @@ const tabs = [
 
 export function Navigation() {
   const navigate = useNavigate();
+  const [avatarLabel, setAvatarLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await getMe();
+        if (!cancelled) {
+          setAvatarLabel(getInitials(me.firstName, me.lastName));
+        }
+      } catch {
+        if (!cancelled) setAvatarLabel("?");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
@@ -30,18 +51,17 @@ export function Navigation() {
               <Bell className="w-5 h-5" />
             </button>
 
-            {/* Profile avatar */}
+            {/* Initiales : style fixe sur toutes les pages (la page active est dans la barre du bas) */}
             <NavLink
               to="/profile"
-              className={({ isActive }) =>
-                `w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm transition border-2 ${
-                  isActive
-                    ? "bg-white text-purple-600 border-white"
-                    : "bg-white/20 text-white border-white/50 hover:bg-white/30"
-                }`
-              }
+              title="Mon profil"
+              className="min-w-9 h-9 px-1 rounded-full flex items-center justify-center font-bold text-xs tabular-nums border-2 border-white/50 bg-white/20 text-white hover:bg-white/30 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
-              <User className="w-4 h-4" />
+              {avatarLabel === null ? (
+                <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <span className="leading-none">{avatarLabel}</span>
+              )}
             </NavLink>
           </div>
         </div>

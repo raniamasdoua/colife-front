@@ -16,9 +16,11 @@ import {
   EyeOff,
   AlertTriangle,
   LogOut,
+  User,
 } from "lucide-react";
 import { PasswordStrengthIndicator } from "../components/ui/PasswordStrengthIndicator";
 import { validatePassword } from "../utils/passwordValidation";
+import { getInitials } from "../utils/userDisplay";
 import { getMe, updateProfile } from "../services/userService";
 import type { UserProfile } from "../types/auth";
 
@@ -101,10 +103,6 @@ function formatDate(iso: string): string {
     month: "long",
     year: "numeric",
   });
-}
-
-function getInitials(firstName: string, lastName: string): string {
-  return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
 }
 
 // ── ProfilePage ───────────────────────────────────────────────────────────────
@@ -308,13 +306,28 @@ export function ProfilePage() {
       {/* ── Toast ── */}
       {toast && <Toast message={toast.message} type={toast.type} />}
 
-      {/* ── Page Banner ── */}
-      <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white px-4 sm:px-6 py-6">
-        <div className="max-w-5xl mx-auto">
-          <h1 className="text-2xl sm:text-3xl font-bold">Mon Profil</h1>
-          <p className="text-sm text-white/80 mt-1">
-            Gérez vos informations personnelles
-          </p>
+      {/* ── En-tête de page (distinct de la navbar gradient) ── */}
+      <div className="border-b border-gray-200 bg-white shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
+          <div className="flex items-start gap-4">
+            <div
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 ring-1 ring-slate-200/80"
+              aria-hidden
+            >
+              <User className="h-6 w-6" strokeWidth={1.75} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">
+                Compte
+              </p>
+              <h1 className="mt-0.5 text-2xl sm:text-3xl font-bold text-gray-900">
+                Mon profil
+              </h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Gérez vos informations personnelles
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
