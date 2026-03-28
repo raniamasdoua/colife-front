@@ -43,6 +43,6 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
   }
 
   const body: LoginResponse = await response.json();
-  localStorage.setItem("token", body.token);
+  localStorage.setItem("accessToken", body.accessToken);
   return body;
 }

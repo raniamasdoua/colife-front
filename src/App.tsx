@@ -6,6 +6,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { Navigation } from "./components/layout/Navigation";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const AUTH_ROUTES = ["/login", "/register"];
 
@@ -18,9 +19,30 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Navigate to="/home" replace />} />
 
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/planning" element={<PlanningPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <HomePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/planning"
+          element={
+            <ProtectedRoute>
+              <PlanningPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
