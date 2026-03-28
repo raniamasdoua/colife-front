@@ -23,6 +23,7 @@ import { validatePassword } from "../utils/passwordValidation";
 import { getInitials } from "../utils/userDisplay";
 import { getMe, updateProfile } from "../services/userService";
 import type { UserProfile } from "../types/auth";
+import { PAGE_CONTAINER_CLASS } from "../layout/page";
 
 // ── Inline Toggle (Switch) ────────────────────────────────────────────────────
 function Toggle({
@@ -306,32 +307,38 @@ export function ProfilePage() {
       {/* ── Toast ── */}
       {toast && <Toast message={toast.message} type={toast.type} />}
 
-      {/* ── En-tête de page (distinct de la navbar gradient) ── */}
-      <div className="border-b border-gray-200 bg-white shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
-          <div className="flex items-start gap-4">
-            <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 ring-1 ring-slate-200/80"
-              aria-hidden
-            >
-              <User className="h-6 w-6" strokeWidth={1.75} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">
-                Compte
-              </p>
-              <h1 className="mt-0.5 text-2xl sm:text-3xl font-bold text-gray-900">
-                Mon profil
-              </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Gérez vos informations personnelles
-              </p>
+      {/* ── En-tête : même patron que la carte d’accueil (barre dégradée + carte blanche) ── */}
+      <section className={`${PAGE_CONTAINER_CLASS} pt-4 pb-1`} aria-label="Profil">
+        <div className="rounded-2xl bg-white shadow-md shadow-slate-200/50 ring-1 ring-slate-200/80 overflow-hidden">
+          <div
+            className="h-1.5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600"
+            aria-hidden
+          />
+          <div className="p-4 sm:p-5">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div
+                className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white shadow-md"
+                aria-hidden
+              >
+                <User className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2} />
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">
+                  Compte
+                </p>
+                <h1 className="mt-0.5 text-lg sm:text-xl font-bold tracking-tight text-slate-900">
+                  Mon profil
+                </h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  Gérez vos informations personnelles
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+      <div className={`${PAGE_CONTAINER_CLASS} py-6`}>
         {/* ── Profile card ── */}
         <div className="bg-white p-5 sm:p-6 mb-6 shadow-xl rounded-2xl">
           <div className="flex flex-col sm:flex-row items-center gap-5">
