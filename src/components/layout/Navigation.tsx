@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Home, CalendarDays, User, Bell } from "lucide-react";
+import { Home, CalendarDays, User, Bell, PlusCircle } from "lucide-react";
 import { getMe } from "../../services/userService";
 import { getInitials } from "../../utils/userDisplay";
+import { useCreateActivityModal } from "../../context/CreateActivityModalContext";
 
 const tabs = [
   { to: "/home", icon: Home, label: "Accueil" },
@@ -12,6 +13,7 @@ const tabs = [
 
 export function Navigation() {
   const navigate = useNavigate();
+  const { openCreate, isCreateModalOpen } = useCreateActivityModal();
   const [avatarLabel, setAvatarLabel] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,8 +48,24 @@ export function Navigation() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              title="Créer une activité"
+              onClick={openCreate}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold text-white ring-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
+                isCreateModalOpen
+                  ? "bg-white text-purple-700 ring-white shadow-md"
+                  : "bg-white/20 ring-white/40 hover:bg-white/30"
+              }`}
+            >
+              <PlusCircle className="w-4 h-4 shrink-0" />
+              <span>Créer</span>
+            </button>
             {/* Notifications (placeholder) */}
-            <button className="w-9 h-9 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 transition">
+            <button
+              type="button"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 transition"
+            >
               <Bell className="w-5 h-5" />
             </button>
 
