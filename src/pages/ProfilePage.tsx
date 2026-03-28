@@ -23,6 +23,7 @@ import { validatePassword } from "../utils/passwordValidation";
 import { getInitials } from "../utils/userDisplay";
 import { getMe, updateProfile } from "../services/userService";
 import type { UserProfile } from "../types/auth";
+import { PAGE_CONTAINER_CLASS } from "../layout/page";
 
 // ── Inline Toggle (Switch) ────────────────────────────────────────────────────
 function Toggle({
@@ -307,10 +308,7 @@ export function ProfilePage() {
       {toast && <Toast message={toast.message} type={toast.type} />}
 
       {/* ── En-tête : même patron que la carte d’accueil (barre dégradée + carte blanche) ── */}
-      <section
-        className="px-4 sm:px-6 pt-4 pb-1 max-w-5xl mx-auto w-full"
-        aria-label="Profil"
-      >
+      <section className={`${PAGE_CONTAINER_CLASS} pt-4 pb-1`} aria-label="Profil">
         <div className="rounded-2xl bg-white shadow-md shadow-slate-200/50 ring-1 ring-slate-200/80 overflow-hidden">
           <div
             className="h-1.5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600"
@@ -340,7 +338,7 @@ export function ProfilePage() {
         </div>
       </section>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+      <div className={`${PAGE_CONTAINER_CLASS} py-6`}>
         {/* ── Profile card ── */}
         <div className="bg-white p-5 sm:p-6 mb-6 shadow-xl rounded-2xl">
           <div className="flex flex-col sm:flex-row items-center gap-5">

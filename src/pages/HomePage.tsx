@@ -23,6 +23,7 @@ import {
   trendingActivities,
   type ActivityItem,
 } from "../components/home/homeData";
+import { PAGE_CONTAINER_CLASS } from "../layout/page";
 
 export function HomePage() {
   const [firstName, setFirstName] = useState<string>("…");
@@ -148,7 +149,7 @@ export function HomePage() {
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-4 space-y-8 sm:space-y-10 pb-4">
+        <div className={`${PAGE_CONTAINER_CLASS} space-y-8 sm:space-y-10 pb-4`}>
           {myOrganizedActivities.length > 0 ? (
             <section>
               <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4">

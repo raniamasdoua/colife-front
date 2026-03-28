@@ -1,4 +1,5 @@
 import { Sparkles, Star, Flame, TrendingUp } from "lucide-react";
+import { PAGE_CONTAINER_CLASS } from "../../layout/page";
 
 type HomeWelcomeSectionProps = {
   firstName: string;
@@ -18,7 +19,7 @@ export function HomeWelcomeSection({
   availableCount,
 }: HomeWelcomeSectionProps) {
   return (
-    <section className="px-4 pt-4 pb-1 max-w-4xl mx-auto w-full" aria-label="Accueil">
+    <section className={`${PAGE_CONTAINER_CLASS} pt-4 pb-1`} aria-label="Accueil">
       <div className="rounded-2xl bg-white shadow-md shadow-slate-200/50 ring-1 ring-slate-200/80 overflow-hidden">
         <div
           className="h-1.5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600"
