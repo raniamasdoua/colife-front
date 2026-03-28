@@ -7,6 +7,7 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { Navigation } from "./components/layout/Navigation";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { CreateActivityModalProvider } from "./context/CreateActivityModalContext";
 
 const AUTH_ROUTES = ["/login", "/register"];
 
@@ -23,6 +24,7 @@ function AppContent() {
       <main className={!isAuthPage ? "flex-1 pb-16" : "flex-1"}>
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/activities/new" element={<Navigate to="/home" replace />} />
 
           <Route
             path="/home"
@@ -60,7 +62,9 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <CreateActivityModalProvider>
+        <AppContent />
+      </CreateActivityModalProvider>
     </BrowserRouter>
   );
 }

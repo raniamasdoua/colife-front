@@ -4,6 +4,23 @@ export function getToken(): string | null {
   return localStorage.getItem("accessToken");
 }
 
+/** Erreur HTTP renvoyée par l’API (corps JSON typique : { message, status, ... }). */
+export class ApiRequestError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+  }
+}
+
+async function parseJsonBody<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options?: RequestInit
@@ -26,9 +43,24 @@ export async function apiFetch<T>(
     if (response.status === 401) {
       localStorage.removeItem("accessToken");
       window.location.href = "/login";
+      throw new ApiRequestError("Session expirée ou non authentifié.", 401);
     }
-    throw new Error(`API error: ${response.status}`);
+
+    let message = `Erreur ${response.status}`;
+    try {
+      const body = await parseJsonBody<{ message?: string }>(response);
+      if (body?.message && typeof body.message === "string") {
+        message = body.message;
+      }
+    } catch {
+      /* corps non JSON */
+    }
+    throw new ApiRequestError(message, response.status);
   }
 
-  return response.json() as Promise<T>;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return parseJsonBody<T>(response);
 }

@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+/* react-day-picker — variables d'accent alignées sur le thème CoLife */
+@layer components {
+  .colife-rdp {
+    --rdp-accent-color: #7c3aed;
+    --rdp-accent-background-color: #ede9fe;
+    --rdp-today-color: #2563eb;
+    --rdp-day-height: 2.5rem;
+    --rdp-day-width: 2.5rem;
+    --rdp-day_button-border-radius: 0.75rem;
+    --rdp-day_button-height: 2.25rem;
+    --rdp-day_button-width: 2.25rem;
+  }
+}
