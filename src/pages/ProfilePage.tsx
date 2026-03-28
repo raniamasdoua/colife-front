@@ -304,21 +304,21 @@ export function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen pb-20 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
       {/* ── Toast ── */}
       {toast && <Toast message={toast.message} type={toast.type} />}
 
-      {/* ── Header ── */}
-      <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white px-4 sm:px-6 pt-6 pb-24 sm:pb-28 rounded-b-[1.5rem] sm:rounded-b-[2rem]">
+      {/* ── Page Banner ── */}
+      <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white px-4 sm:px-6 py-6">
         <div className="max-w-5xl mx-auto">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-1">Mon Profil</h1>
-          <p className="text-sm sm:text-base text-white/90">
+          <h1 className="text-2xl sm:text-3xl font-bold">Mon Profil</h1>
+          <p className="text-sm text-white/80 mt-1">
             Gérez vos informations personnelles
           </p>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 -mt-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         {/* ── Profile card ── */}
         <div className="bg-white p-5 sm:p-6 mb-6 shadow-xl rounded-2xl">
           <div className="flex flex-col sm:flex-row items-center gap-5">
