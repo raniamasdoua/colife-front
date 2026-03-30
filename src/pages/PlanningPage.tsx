@@ -9,7 +9,11 @@ import {
   Star,
   TrendingUp,
   Sparkles,
+  CheckCircle2,
+  LayoutList,
 } from "lucide-react";
+
+type FilterMode = "organized" | "registered" | "all";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
 import { getMyActivities } from "../services/activityService";
 import { useCreateActivityModal } from "../context/CreateActivityModalContext";
@@ -59,10 +63,12 @@ function ActivityCard({
   activity,
   today,
   onClick,
+  showOrganizerBadge = false,
 }: {
   activity: ActivityResponse;
   today: Date;
   onClick: () => void;
+  showOrganizerBadge?: boolean;
 }) {
   const actDate = parseDate(activity.date);
   const isPast = actDate < today;
@@ -87,14 +93,26 @@ function ActivityCard({
       />
 
       <div className="flex-1 min-w-0 p-3 sm:p-3.5">
-        {/* Titre + badge type */}
+        {/* Titre + badges */}
         <div className="flex items-start justify-between gap-2 mb-1.5">
-          <h4 className="font-semibold text-sm text-slate-900 line-clamp-1 leading-snug">
-            {activity.title}
-          </h4>
-          <span className="shrink-0 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700">
-            {activity.activityType.name}
-          </span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {showOrganizerBadge && (
+              <Star className="h-3 w-3 shrink-0 text-amber-400 fill-amber-400" />
+            )}
+            <h4 className="font-semibold text-sm text-slate-900 line-clamp-1 leading-snug">
+              {activity.title}
+            </h4>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            {showOrganizerBadge && (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700 ring-1 ring-amber-200 whitespace-nowrap">
+                Organisateur
+              </span>
+            )}
+            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700 whitespace-nowrap">
+              {activity.activityType.name}
+            </span>
+          </div>
         </div>
 
         {/* Heure + lieu */}
@@ -149,6 +167,7 @@ export function PlanningPage() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [currentPage, setCurrentPage] = useState(0);
+  const [filterMode, setFilterMode] = useState<FilterMode>("organized");
   const [selectedActivity, setSelectedActivity] = useState<ActivityResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -220,6 +239,12 @@ export function PlanningPage() {
   };
 
   const clearDate = () => {
+    setSelectedDate(null);
+    setCurrentPage(0);
+  };
+
+  const changeFilter = (mode: FilterMode) => {
+    setFilterMode(mode);
     setSelectedDate(null);
     setCurrentPage(0);
   };
@@ -326,7 +351,11 @@ export function PlanningPage() {
                   Mon Planning
                 </h1>
                 <p className="mt-1 text-sm text-slate-500">
-                  Activités que vous avez organisées
+                  {filterMode === "organized"
+                    ? "Activités que vous avez organisées"
+                    : filterMode === "registered"
+                    ? "Activités auxquelles vous êtes inscrit"
+                    : "Toutes vos activités"}
                 </p>
               </div>
             </div>
@@ -364,7 +393,51 @@ export function PlanningPage() {
           </div>
         </section>
 
+        {/* ── Onglets de filtre ───────────────────────────────────────────── */}
+        <div className="rounded-2xl bg-white shadow-md ring-1 ring-slate-100 p-1.5 flex gap-1">
+          {(
+            [
+              { id: "organized", label: "J'organise", Icon: Star },
+              { id: "registered", label: "Inscriptions", Icon: CheckCircle2 },
+              { id: "all", label: "Tout", Icon: LayoutList },
+            ] as { id: FilterMode; label: string; Icon: React.ElementType }[]
+          ).map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => changeFilter(id)}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
+                filterMode === id
+                  ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ── Placeholder "Inscriptions" (pas encore implémenté backend) ──── */}
+        {filterMode === "registered" && (
+          <div className="rounded-2xl bg-white p-10 text-center shadow-md ring-1 ring-slate-100">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100">
+              <CheckCircle2 className="h-8 w-8 text-purple-400" />
+            </div>
+            <p className="font-semibold text-slate-700">Mes inscriptions</p>
+            <p className="mt-1.5 text-sm text-slate-400 max-w-xs mx-auto leading-relaxed">
+              Retrouvez ici toutes les activités auxquelles vous vous êtes
+              inscrit, organisées par d'autres collaborateurs.
+            </p>
+            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+              Fonctionnalité en cours de développement
+            </span>
+          </div>
+        )}
+
         {/* ── Mise en page deux colonnes ──────────────────────────────────── */}
+        {filterMode !== "registered" && (
         <div className="md:flex md:items-start md:gap-5">
 
           {/* ── Colonne gauche : mini-calendrier (sticky sur desktop) ─────── */}
@@ -555,6 +628,7 @@ export function PlanningPage() {
                     activity={a}
                     today={today}
                     onClick={() => openActivity(a)}
+                    showOrganizerBadge={filterMode === "all"}
                   />
                 ))}
               </div>
@@ -614,6 +688,7 @@ export function PlanningPage() {
                             activity={a}
                             today={today}
                             onClick={() => openActivity(a)}
+                            showOrganizerBadge={filterMode === "all"}
                           />
                         ))}
                       </div>
@@ -653,6 +728,7 @@ export function PlanningPage() {
             )}
           </div>
         </div>
+        )} {/* fin filterMode !== 'registered' */}
       </div>
 
       {/* ── Modal de détail ─────────────────────────────────────────────────── */}
