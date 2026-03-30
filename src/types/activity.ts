@@ -37,3 +37,4 @@ export interface ActivityResponse {
   startTime: string;
   endTime: string;
 }
+
