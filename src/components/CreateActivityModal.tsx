@@ -269,7 +269,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
               <p className="mt-1 text-sm text-gray-600">
                 {createSuccess
                   ? "Votre activité a bien été créée."
-                  : "Organisez une activité pour vos collègues (connexion sécurisée)."}
+                  : "Organisez une activité entre collègues"}
               </p>
             </div>
           </div>

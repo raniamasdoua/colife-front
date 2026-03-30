@@ -14,6 +14,7 @@ import {
   Zap,
 } from "lucide-react";
 import { getMe } from "../services/userService";
+import { getMyActivities } from "../services/activityService";
 import { HomeWelcomeSection } from "../components/home/HomeWelcomeSection";
 import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
 import {
@@ -27,6 +28,7 @@ import { PAGE_CONTAINER_CLASS } from "../layout/page";
 
 export function HomePage() {
   const [firstName, setFirstName] = useState<string>("…");
+  const [organizedCount, setOrganizedCount] = useState<number>(0);
   const [detail, setDetail] = useState<ActivityItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -41,8 +43,11 @@ export function HomePage() {
     let cancelled = false;
     (async () => {
       try {
-        const me = await getMe();
-        if (!cancelled) setFirstName(me.firstName?.trim() || "toi");
+        const [me, activities] = await Promise.all([getMe(), getMyActivities()]);
+        if (!cancelled) {
+          setFirstName(me.firstName?.trim() || "toi");
+          setOrganizedCount(activities.length);
+        }
       } catch {
         if (!cancelled) setFirstName("toi");
       }
@@ -112,7 +117,7 @@ export function HomePage() {
       <div className="relative z-10">
         <HomeWelcomeSection
           firstName={firstName}
-          organizedCount={myOrganizedActivities.length}
+          organizedCount={organizedCount}
           registeredCount={myRegisteredActivities.length}
           availableCount={trendingActivities.length}
         />
