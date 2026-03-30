@@ -22,3 +22,7 @@ export async function getMyActivities(): Promise<ActivityResponse[]> {
   return apiFetch<ActivityResponse[]>("/activities/mine");
 }
 
+export async function getAvailableActivities(): Promise<ActivityResponse[]> {
+  return apiFetch<ActivityResponse[]>("/activities/available");
+}
+

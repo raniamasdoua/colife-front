@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Home, CalendarDays, User, Bell, PlusCircle } from "lucide-react";
+import { Home, CalendarDays, Compass, User, Bell, PlusCircle } from "lucide-react";
 import { getMe } from "../../services/userService";
 import { getInitials } from "../../utils/userDisplay";
 import { useCreateActivityModal } from "../../context/CreateActivityModalContext";
@@ -8,6 +8,7 @@ import { useCreateActivityModal } from "../../context/CreateActivityModalContext
 const tabs = [
   { to: "/home", icon: Home, label: "Accueil" },
   { to: "/planning", icon: CalendarDays, label: "Planning" },
+  { to: "/explore", icon: Compass, label: "Explorer" },
   { to: "/profile", icon: User, label: "Profil" },
 ];
 
@@ -87,7 +88,7 @@ export function Navigation() {
 
       {/* ── Bottom Tab Bar ── */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-2xl safe-area-inset-bottom">
-        <div className="grid grid-cols-3 h-16 max-w-7xl mx-auto">
+        <div className="grid grid-cols-4 h-16 max-w-7xl mx-auto">
           {tabs.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
