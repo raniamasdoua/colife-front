@@ -57,6 +57,28 @@ function isSameDay(a: Date, b: Date): boolean {
   );
 }
 
+/**
+ * Une activité est "passée" si :
+ * - sa date est antérieure à aujourd'hui, OU
+ * - c'est aujourd'hui ET son heure de fin est déjà écoulée.
+ */
+function isActivityPast(activity: ActivityResponse, today: Date): boolean {
+  const actDate = parseDate(activity.date);
+  if (actDate.getTime() < today.getTime()) return true;
+  if (isSameDay(actDate, today)) {
+    const [h, m] = formatTime(activity.endTime).split(":").map(Number);
+    const endDateTime = new Date(
+      actDate.getFullYear(),
+      actDate.getMonth(),
+      actDate.getDate(),
+      h,
+      m
+    );
+    return endDateTime < new Date();
+  }
+  return false;
+}
+
 /* ── Composant carte activité ─────────────────────────────────────────────── */
 
 function ActivityCard({
@@ -70,8 +92,7 @@ function ActivityCard({
   onClick: () => void;
   showOrganizerBadge?: boolean;
 }) {
-  const actDate = parseDate(activity.date);
-  const isPast = actDate < today;
+  const isPast = isActivityPast(activity, today);
 
   return (
     <button
@@ -262,21 +283,23 @@ export function PlanningPage() {
     const d = parseDate(a.date);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
-  const upcomingCount = activities.filter((a) => parseDate(a.date) >= today).length;
+  const upcomingCount = activities.filter((a) => !isActivityPast(a, today)).length;
 
   /* ── Activités affichées ────────────────────────────────────────────────── */
 
   const upcoming = activities
-    .filter((a) => parseDate(a.date) >= today)
+    .filter((a) => !isActivityPast(a, today))
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
 
   const past = activities
-    .filter((a) => parseDate(a.date) < today)
+    .filter((a) => isActivityPast(a, today))
     .sort((a, b) => b.date.localeCompare(a.date) || a.startTime.localeCompare(b.startTime));
 
+  /* Sans date sélectionnée : uniquement les activités à venir.
+     Avec date sélectionnée : toutes celles du jour (les passées sont grisées). */
   const displayed = selectedDate
     ? getActivitiesForDate(selectedDate)
-    : [...upcoming, ...past];
+    : upcoming;
 
   /* Groupement par date (vue "tout") */
   const buildGroups = (list: ActivityResponse[]) => {
@@ -348,7 +371,7 @@ export function PlanningPage() {
                   Planning
                 </p>
                 <h1 className="mt-0.5 text-lg sm:text-xl font-bold tracking-tight text-slate-900">
-                  Mon Planning
+                  Mon Planning des activités
                 </h1>
                 <p className="mt-1 text-sm text-slate-500">
                   {filterMode === "organized"
@@ -599,12 +622,12 @@ export function PlanningPage() {
                 <p className="font-semibold text-slate-700">
                   {selectedDate
                     ? "Aucune activité ce jour"
-                    : "Aucune activité organisée"}
+                    : "Aucune activité à venir"}
                 </p>
                 <p className="mt-1 text-sm text-slate-400 max-w-xs mx-auto">
                   {selectedDate
                     ? "Ce jour est libre. Sélectionnez un autre jour ou effacez la sélection."
-                    : "Créez votre première activité pour la retrouver ici."}
+                    : "Vous n'avez pas encore d'activité planifiée."}
                 </p>
                 {!selectedDate && (
                   <button
