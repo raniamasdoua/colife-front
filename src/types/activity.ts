@@ -36,5 +36,6 @@ export interface ActivityResponse {
   date: string;
   startTime: string;
   endTime: string;
+  organizerName: string;
 }
 
