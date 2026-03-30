@@ -17,3 +17,8 @@ export async function createActivity(
     body: JSON.stringify(payload),
   });
 }
+
+export async function getMyActivities(): Promise<ActivityResponse[]> {
+  return apiFetch<ActivityResponse[]>("/activities/mine");
+}
+
