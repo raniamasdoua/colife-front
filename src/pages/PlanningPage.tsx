@@ -16,6 +16,7 @@ import {
 type FilterMode = "organized" | "registered" | "all";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
 import { getMyActivities } from "../services/activityService";
+import { getTypeConfig } from "../utils/activityDisplay";
 import { useCreateActivityModal } from "../context/CreateActivityModalContext";
 import { ActivityDetailModal } from "../components/planning/ActivityDetailModal";
 import type { ActivityResponse } from "../types/activity";
@@ -93,6 +94,7 @@ function ActivityCard({
   showOrganizerBadge?: boolean;
 }) {
   const isPast = isActivityPast(activity, today);
+  const { badge } = getTypeConfig(activity.activityType.name);
 
   return (
     <button
@@ -100,19 +102,10 @@ function ActivityCard({
       onClick={onClick}
       className={`w-full text-left flex overflow-hidden rounded-xl bg-white shadow-sm ring-1 transition-all duration-200 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
         isPast
-          ? "ring-slate-100 opacity-60"
+          ? "ring-slate-100 opacity-55"
           : "ring-slate-100 hover:ring-purple-200 hover:-translate-y-px"
       }`}
     >
-      {/* Barre d'accent colorée à gauche */}
-      <div
-        className={`w-1.5 shrink-0 rounded-l-xl ${
-          isPast
-            ? "bg-slate-300"
-            : "bg-gradient-to-b from-blue-500 to-purple-600"
-        }`}
-      />
-
       <div className="flex-1 min-w-0 p-3 sm:p-3.5">
         {/* Titre + badges */}
         <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -130,7 +123,7 @@ function ActivityCard({
                 Organisateur
               </span>
             )}
-            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700 whitespace-nowrap">
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${badge}`}>
               {activity.activityType.name}
             </span>
           </div>
@@ -154,12 +147,8 @@ function ActivityCard({
         <div className="flex items-center justify-between mt-2">
           <span className="flex items-center gap-1 text-[11px] text-slate-500">
             <Users className="h-3 w-3 shrink-0 text-slate-400" />
-            <span>
-              <span className="font-semibold text-slate-700">
-                {activity.capacity}
-              </span>{" "}
-              place{activity.capacity > 1 ? "s" : ""}
-            </span>
+            <span className="font-semibold text-slate-700">{activity.capacity}</span>
+            <span>place{activity.capacity > 1 ? "s" : ""}</span>
           </span>
           {isPast ? (
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-400">
