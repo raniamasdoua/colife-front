@@ -14,3 +14,13 @@
 - feat(inscription) : Kan-159 UI écran inscription utilisateur (#3)
 - feat(front) : initialisation projet front et mise en place de la CI (#1)
 
+## v0.0.3 - 2026-04-05
+
+### 🚀 Features & Fixes
+- feat(activite): page planning personnel des activités + page explorer les activités
+- activités disponibles
+- feat(activite): consultation des activités organisées
+- amélioration du planning avec séparation activités organisées, inscrites et toutes
+- planning des activités de l'utilisateur
+- feat(activite): formulaire d'ajout d'une activite
+
