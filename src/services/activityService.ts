@@ -29,6 +29,13 @@ export async function updateActivity(
   });
 }
 
+/** DELETE /activities/{id} — 204 No Content */
+export async function deleteActivity(activityId: number): Promise<void> {
+  return apiFetch<void>(`/activities/${activityId}`, {
+    method: "DELETE",
+  });
+}
+
 export async function getMyActivities(): Promise<ActivityResponse[]> {
   return apiFetch<ActivityResponse[]>("/activities/mine");
 }

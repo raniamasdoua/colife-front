@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -143,6 +143,19 @@ export function HomePage() {
       prev.map((a) => (a.id === updated.id ? updated : a))
     );
   };
+
+  const handleDeleted = useCallback((id: number) => {
+    setOrganizedActivities((prev) => prev.filter((a) => a.id !== id));
+    setDetail(null);
+    setDetailOpen(false);
+    setEditActivity((e) => (e?.id === id ? null : e));
+  }, []);
+
+  useEffect(() => {
+    if (editActivity === null && editOpen) {
+      setEditOpen(false);
+    }
+  }, [editActivity, editOpen]);
 
   const nextActivity = getNextActivity(organizedActivities);
 
@@ -438,6 +451,7 @@ export function HomePage() {
         onOpenChange={setDetailOpen}
         mode={detailMode}
         onEdit={handleEdit}
+        onDeleted={handleDeleted}
       />
 
       <EditActivityModal
