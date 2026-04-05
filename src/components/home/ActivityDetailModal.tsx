@@ -46,6 +46,7 @@ type ActivityDetailModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode?: Mode;
+  onEdit?: (activity: ActivityResponse) => void;
 };
 
 /* ── Composant ──────────────────────────────────────────────────────────── */
@@ -55,6 +56,7 @@ export function ActivityDetailModal({
   open,
   onOpenChange,
   mode = "available",
+  onEdit,
 }: ActivityDetailModalProps) {
   if (!open || !activity) return null;
 
@@ -188,6 +190,7 @@ export function ActivityDetailModal({
               </button>
               <button
                 type="button"
+                onClick={() => onEdit?.(activity)}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 py-2.5 text-sm font-semibold text-white shadow-md shadow-purple-200 hover:brightness-105 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
               >
                 <Pencil className="h-4 w-4" />
