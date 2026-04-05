@@ -15,6 +15,7 @@ import {
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
 import { getAvailableActivities } from "../services/activityService";
 import type { ActivityResponse } from "../types/activity";
+import { getTypeConfig } from "../utils/activityDisplay";
 
 /* ── Constantes ─────────────────────────────────────────────────────────────── */
 
@@ -59,69 +60,18 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-function getFillPercent(capacity: number, participantCount?: number): number {
-  if (!participantCount) return 0;
-  return Math.min(100, Math.round((participantCount / capacity) * 100));
-}
-
-/* ── Mapping type → couleur ─────────────────────────────────────────────────── */
-
-const TYPE_GRADIENTS: Record<string, string> = {
-  Piscine: "from-blue-400 to-cyan-500",
-  Natation: "from-blue-400 to-cyan-500",
-  Padel: "from-green-400 to-emerald-500",
-  Tennis: "from-yellow-400 to-orange-400",
-  Yoga: "from-violet-400 to-purple-500",
-  Football: "from-green-500 to-teal-600",
-  "Course à pied": "from-red-400 to-orange-500",
-  Running: "from-red-400 to-orange-500",
-  Randonnée: "from-lime-500 to-green-600",
-  Cuisine: "from-pink-400 to-rose-500",
-  Escalade: "from-indigo-400 to-blue-600",
-  Méditation: "from-purple-400 to-violet-500",
-  Badminton: "from-amber-400 to-yellow-500",
-  "Jeux de société": "from-orange-400 to-amber-500",
-  Social: "from-rose-400 to-pink-500",
-  Pilates: "from-fuchsia-400 to-pink-500",
-};
-
-function getTypeGradient(typeName: string): string {
-  return TYPE_GRADIENTS[typeName] ?? "from-blue-500 to-purple-600";
-}
-
-const TYPE_BADGE: Record<string, string> = {
-  Piscine: "bg-blue-100 text-blue-800",
-  Natation: "bg-blue-100 text-blue-800",
-  Padel: "bg-green-100 text-green-800",
-  Tennis: "bg-yellow-100 text-yellow-800",
-  Yoga: "bg-purple-100 text-purple-800",
-  Football: "bg-emerald-100 text-emerald-800",
-  "Course à pied": "bg-red-100 text-red-800",
-  Running: "bg-red-100 text-red-800",
-  Randonnée: "bg-lime-100 text-lime-800",
-  Cuisine: "bg-pink-100 text-pink-800",
-  Escalade: "bg-indigo-100 text-indigo-800",
-  Méditation: "bg-violet-100 text-violet-800",
-  Badminton: "bg-amber-100 text-amber-800",
-  "Jeux de société": "bg-orange-100 text-orange-800",
-  Social: "bg-rose-100 text-rose-800",
-  Pilates: "bg-fuchsia-100 text-fuchsia-800",
-};
-
-function getTypeBadgeClass(typeName: string): string {
-  return TYPE_BADGE[typeName] ?? "bg-slate-100 text-slate-700";
-}
 
 /* ── Squelette de chargement ────────────────────────────────────────────────── */
 
 function SkeletonCard() {
   return (
     <div className="rounded-2xl bg-white shadow-md ring-1 ring-slate-100 overflow-hidden animate-pulse">
-      <div className="h-28 bg-slate-200" />
       <div className="p-4 space-y-3">
+        <div className="h-5 bg-slate-200 rounded-full w-1/3" />
         <div className="h-4 bg-slate-200 rounded w-3/4" />
         <div className="h-3 bg-slate-200 rounded w-1/2" />
         <div className="h-3 bg-slate-200 rounded w-2/3" />
+        <div className="h-3 bg-slate-200 rounded w-1/2" />
         <div className="h-8 bg-slate-200 rounded-xl mt-2" />
       </div>
     </div>
@@ -137,89 +87,86 @@ function ActivityCard({
   activity: ActivityResponse;
   onClick: () => void;
 }) {
-  const gradient = getTypeGradient(activity.activityType.name);
-  const badgeClass = getTypeBadgeClass(activity.activityType.name);
-  const fill = getFillPercent(activity.capacity);
-  const isFull = fill >= 100;
+  const { badge } = getTypeConfig(activity.activityType.name);
+  const fill = Math.min(100, Math.round((activity.participantCount / activity.capacity) * 100));
+  const isFull = activity.participantCount >= activity.capacity;
+  const isHot = fill >= 80 && !isFull;
 
   return (
     <div
-      className="rounded-2xl bg-white shadow-md ring-1 ring-slate-100 overflow-hidden flex flex-col transition hover:shadow-lg hover:ring-purple-200 cursor-pointer group"
+      className="rounded-2xl bg-white shadow-md ring-1 ring-slate-100 overflow-hidden flex flex-col transition hover:shadow-xl hover:ring-purple-200 hover:-translate-y-0.5 cursor-pointer group"
       onClick={onClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
     >
-      {/* Colored header */}
-      <div className={`relative h-28 bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-        <span className="text-white/20 text-7xl font-black select-none leading-none">
-          {activity.activityType.name.slice(0, 1).toUpperCase()}
-        </span>
-        <div className="absolute top-3 left-3">
-          <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${badgeClass}`}>
+      <div className="flex flex-col flex-1 p-4 gap-3">
+        {/* Badges */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${badge}`}>
             {activity.activityType.name}
           </span>
-        </div>
-        {isFull && (
-          <div className="absolute top-3 right-3">
-            <span className="inline-block rounded-full bg-red-500 px-2.5 py-0.5 text-[11px] font-semibold text-white">
+          {isHot && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white">
+              🔥 Hot
+            </span>
+          )}
+          {isFull && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">
               Complet
             </span>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
-      {/* Body */}
-      <div className="flex flex-col flex-1 p-4 gap-3">
+        {/* Titre */}
         <h3 className="font-bold text-base text-slate-900 leading-tight line-clamp-2 group-hover:text-purple-700 transition-colors">
           {activity.title}
         </h3>
 
+        {/* Infos */}
         <div className="space-y-1.5 text-xs text-slate-600">
           <div className="flex items-center gap-2">
-            <Calendar className="h-3.5 w-3.5 shrink-0 text-purple-500" />
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-purple-400" />
             <span>{formatDateShort(activity.date)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Clock className="h-3.5 w-3.5 shrink-0 text-purple-500" />
-            <span>
-              {formatTime(activity.startTime)} – {formatTime(activity.endTime)}
-            </span>
+            <Clock className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+            <span>{formatTime(activity.startTime)} – {formatTime(activity.endTime)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-500" />
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />
             <span className="line-clamp-1">
               {activity.location.city}
               {activity.location.street ? `, ${activity.location.street}` : ""}
             </span>
           </div>
-        </div>
-
-        {/* Organisateur + participants */}
-        <div className="flex items-center justify-between gap-2 text-xs text-slate-600">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-[10px] font-bold text-white">
-              {getInitials(activity.organizerName)}
-            </span>
-            <span className="truncate">{activity.organizerName}</span>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Users className="h-3.5 w-3.5 text-slate-400" />
-            <span className={isFull ? "font-semibold text-red-600" : ""}>
-              {activity.capacity}
-            </span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Users className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+              <span className={isFull ? "font-semibold text-red-600" : isHot ? "font-semibold text-orange-600" : ""}>
+                {activity.participantCount}/{activity.capacity} place{activity.capacity > 1 ? "s" : ""}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Bouton d'inscription — visuel uniquement */}
+        {/* Organisateur */}
+        <div className="flex items-center gap-2 text-xs text-slate-600 mt-auto">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-[10px] font-bold text-white">
+            {getInitials(activity.organizerName)}
+          </span>
+          <span className="truncate">{activity.organizerName}</span>
+        </div>
+
+        {/* Bouton S'inscrire — visuel uniquement */}
         <button
           type="button"
-          onClick={(e) => e.stopPropagation()}
           disabled={isFull}
-          className={`mt-auto w-full rounded-xl py-2.5 text-sm font-semibold text-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
+          onClick={(e) => e.stopPropagation()}
+          className={`w-full rounded-xl py-2.5 text-sm font-semibold text-white shadow-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
             isFull
-              ? "cursor-not-allowed bg-slate-300 text-slate-500"
-              : "bg-gradient-to-r from-blue-500 to-purple-600 shadow-md shadow-purple-200 hover:brightness-105"
+              ? "cursor-not-allowed bg-slate-300 text-slate-500 shadow-none"
+              : "bg-gradient-to-r from-blue-500 to-purple-600 shadow-purple-200/50 hover:brightness-105"
           }`}
         >
           {isFull ? "Complet" : "S'inscrire"}
@@ -242,8 +189,7 @@ function ActivityDetailModal({
 }) {
   if (!open || !activity) return null;
 
-  const gradient = getTypeGradient(activity.activityType.name);
-  const badgeClass = getTypeBadgeClass(activity.activityType.name);
+  const { gradient, badge, icon: Icon } = getTypeConfig(activity.activityType.name);
 
   return (
     <div
@@ -258,11 +204,11 @@ function ActivityDetailModal({
         onClick={onClose}
       />
       <div className="relative z-10 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-        {/* Header coloré */}
-        <div className={`relative h-36 bg-gradient-to-br ${gradient} shrink-0`}>
-          <span className="absolute inset-0 flex items-center justify-center text-white/15 text-9xl font-black select-none leading-none">
-            {activity.activityType.name.slice(0, 1).toUpperCase()}
-          </span>
+        {/* Header coloré avec icône */}
+        <div className={`relative h-36 bg-gradient-to-br ${gradient} shrink-0 flex items-center justify-center overflow-hidden`}>
+          <div className="absolute -top-6 -right-6 h-32 w-32 rounded-full bg-white/10" />
+          <div className="absolute -bottom-8 -left-8 h-36 w-36 rounded-full bg-white/10" />
+          <Icon className="h-16 w-16 text-white/90 drop-shadow-sm relative z-10" strokeWidth={1.5} />
           <button
             type="button"
             onClick={onClose}
@@ -272,7 +218,7 @@ function ActivityDetailModal({
             <X className="h-4 w-4" />
           </button>
           <div className="absolute bottom-3 left-4">
-            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${badgeClass}`}>
+            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold shadow-sm ${badge}`}>
               {activity.activityType.name}
             </span>
           </div>

@@ -26,6 +26,7 @@ export interface ActivityResponse {
   title: string;
   description: string | null;
   capacity: number;
+  participantCount: number;
   location: {
     street: string;
     complement: string | null;
