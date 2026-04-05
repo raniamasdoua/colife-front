@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   CalendarDays,
   Clock,
@@ -186,6 +186,19 @@ export function PlanningPage() {
 
   const listRef = useRef<HTMLDivElement>(null);
   const { openCreate } = useCreateActivityModal();
+
+  const handleActivityDeleted = useCallback((id: number) => {
+    setActivities((prev) => prev.filter((a) => a.id !== id));
+    setSelectedActivity(null);
+    setModalOpen(false);
+    setEditActivity((e) => (e?.id === id ? null : e));
+  }, []);
+
+  useEffect(() => {
+    if (editActivity === null && editOpen) {
+      setEditOpen(false);
+    }
+  }, [editActivity, editOpen]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -756,6 +769,7 @@ export function PlanningPage() {
           setEditActivity(a);
           setEditOpen(true);
         }}
+        onDeleted={handleActivityDeleted}
       />
 
       {/* ── Modal de modification ────────────────────────────────────────────── */}

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   X,
   Star,
@@ -8,8 +9,12 @@ import {
   Pencil,
   Trash2,
   FileText,
+  Loader2,
 } from "lucide-react";
+import { deleteActivity } from "../../services/activityService";
+import { ApiRequestError } from "../../services/api";
 import type { ActivityResponse } from "../../types/activity";
+import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -47,9 +52,13 @@ type ActivityDetailModalProps = {
   onOpenChange: (open: boolean) => void;
   mode?: Mode;
   onEdit?: (activity: ActivityResponse) => void;
+  /** Appelé après suppression réussie (retrait des listes côté parent). */
+  onDeleted?: (activityId: number) => void;
 };
 
 /* ── Composant ──────────────────────────────────────────────────────────── */
+
+type DeletePhase = "idle" | "confirm";
 
 export function ActivityDetailModal({
   activity,
@@ -57,10 +66,43 @@ export function ActivityDetailModal({
   onOpenChange,
   mode = "available",
   onEdit,
+  onDeleted,
 }: ActivityDetailModalProps) {
+  const [deletePhase, setDeletePhase] = useState<DeletePhase>("idle");
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setDeletePhase("idle");
+      setDeleteSubmitting(false);
+      setDeleteError(null);
+    }
+  }, [open]);
+
   if (!open || !activity) return null;
 
   const isOrganizer = mode === "organizer";
+  const canEditOrDelete = !isActivityNoLongerEditable(activity);
+  const showOrganizerActions = isOrganizer && canEditOrDelete;
+
+  const handleConfirmDelete = async () => {
+    setDeleteError(null);
+    setDeleteSubmitting(true);
+    try {
+      await deleteActivity(activity.id);
+      onDeleted?.(activity.id);
+      onOpenChange(false);
+    } catch (e) {
+      setDeleteError(
+        e instanceof ApiRequestError
+          ? e.message
+          : "Impossible de supprimer l'activité. Réessayez."
+      );
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -177,26 +219,90 @@ export function ActivityDetailModal({
           )}
         </div>
 
-        {/* Footer — boutons visuels uniquement */}
-        <div className="p-4 border-t border-slate-100 flex gap-3 shrink-0">
+        {/* Footer — organisateur : modifier / supprimer (masqués si passée / déjà commencée) */}
+        <div className="p-4 border-t border-slate-100 flex flex-col gap-3 shrink-0">
           {isOrganizer ? (
-            <>
-              <button
-                type="button"
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100 hover:border-red-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-              >
-                <Trash2 className="h-4 w-4" />
-                Supprimer
-              </button>
-              <button
-                type="button"
-                onClick={() => onEdit?.(activity)}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 py-2.5 text-sm font-semibold text-white shadow-md shadow-purple-200 hover:brightness-105 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
-              >
-                <Pencil className="h-4 w-4" />
-                Modifier
-              </button>
-            </>
+            !showOrganizerActions ? (
+              <p className="text-center text-xs text-slate-500 leading-relaxed px-1 py-1">
+                Cette activité est terminée ou a déjà commencée : la modification et la suppression ne sont plus
+                disponibles.
+              </p>
+            ) : deletePhase === "idle" ? (
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setDeletePhase("confirm");
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100 hover:border-red-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Supprimer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onEdit?.(activity)}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 py-2.5 text-sm font-semibold text-white shadow-md shadow-purple-200 hover:brightness-105 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Modifier
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Supprimer cette activité ? Les inscriptions seront annulées. Cette action est irréversible
+                  côté affichage (l&apos;activité ne sera plus visible).
+                </p>
+                {activity.participantCount > 0 && (
+                  <p className="text-xs font-medium text-amber-800 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+                    {activity.participantCount} participant
+                    {activity.participantCount > 1 ? "s" : ""} inscrit
+                    {activity.participantCount > 1 ? "s" : ""} — ils seront désinscrits automatiquement.
+                  </p>
+                )}
+                {deleteError ? (
+                  <div
+                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+                    role="alert"
+                  >
+                    {deleteError}
+                  </div>
+                ) : null}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeletePhase("idle");
+                      setDeleteError(null);
+                    }}
+                    disabled={deleteSubmitting}
+                    className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Retour
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    disabled={deleteSubmitting}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-red-300 bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {deleteSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Suppression…
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4" />
+                        Confirmer la suppression
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )
           ) : (
             <button
               type="button"
