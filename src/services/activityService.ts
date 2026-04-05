@@ -3,6 +3,7 @@ import type {
   ActivityResponse,
   ActivityTypeOption,
   CreateActivityPayload,
+  UpdateActivityPayload,
 } from "../types/activity";
 
 export async function getActivityTypes(): Promise<ActivityTypeOption[]> {
@@ -14,6 +15,16 @@ export async function createActivity(
 ): Promise<ActivityResponse> {
   return apiFetch<ActivityResponse>("/activities", {
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateActivity(
+  activityId: number,
+  payload: UpdateActivityPayload
+): Promise<ActivityResponse> {
+  return apiFetch<ActivityResponse>(`/activities/${activityId}`, {
+    method: "PUT",
     body: JSON.stringify(payload),
   });
 }

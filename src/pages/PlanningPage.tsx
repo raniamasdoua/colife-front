@@ -19,6 +19,7 @@ import { getMyActivities } from "../services/activityService";
 import { getTypeConfig } from "../utils/activityDisplay";
 import { useCreateActivityModal } from "../context/CreateActivityModalContext";
 import { ActivityDetailModal } from "../components/planning/ActivityDetailModal";
+import { EditActivityModal } from "../components/EditActivityModal";
 import type { ActivityResponse } from "../types/activity";
 
 const PAGE_SIZE = 10;
@@ -180,6 +181,8 @@ export function PlanningPage() {
   const [filterMode, setFilterMode] = useState<FilterMode>("organized");
   const [selectedActivity, setSelectedActivity] = useState<ActivityResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editActivity, setEditActivity] = useState<ActivityResponse | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   const { openCreate } = useCreateActivityModal();
@@ -748,6 +751,22 @@ export function PlanningPage() {
         activity={selectedActivity}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        onEdit={(a) => {
+          setModalOpen(false);
+          setEditActivity(a);
+          setEditOpen(true);
+        }}
+      />
+
+      {/* ── Modal de modification ────────────────────────────────────────────── */}
+      <EditActivityModal
+        activity={editActivity}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSuccess={(updated) => {
+          setActivities((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+          setSelectedActivity((prev) => (prev?.id === updated.id ? updated : prev));
+        }}
       />
     </div>
   );
