@@ -4,6 +4,23 @@ export interface ActivityTypeOption {
   name: string;
 }
 
+/** Corps PUT /activities/{id} — aligné sur UpdateActivityRequestDto (backend). */
+export interface UpdateActivityPayload {
+  title: string;
+  description?: string | null;
+  activityTypeId: number;
+  date: string;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  location: {
+    street: string;
+    complement?: string | null;
+    postalCode: string;
+    city: string;
+  };
+}
+
 /** Corps POST /activities — aligné sur CreateActivityRequestDto (backend). */
 export interface CreateActivityPayload {
   title: string;

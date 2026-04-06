@@ -3,6 +3,7 @@ import type {
   ActivityResponse,
   ActivityTypeOption,
   CreateActivityPayload,
+  UpdateActivityPayload,
 } from "../types/activity";
 
 export async function getActivityTypes(): Promise<ActivityTypeOption[]> {
@@ -15,6 +16,23 @@ export async function createActivity(
   return apiFetch<ActivityResponse>("/activities", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function updateActivity(
+  activityId: number,
+  payload: UpdateActivityPayload
+): Promise<ActivityResponse> {
+  return apiFetch<ActivityResponse>(`/activities/${activityId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** DELETE /activities/{id} — 204 No Content */
+export async function deleteActivity(activityId: number): Promise<void> {
+  return apiFetch<void>(`/activities/${activityId}`, {
+    method: "DELETE",
   });
 }
 

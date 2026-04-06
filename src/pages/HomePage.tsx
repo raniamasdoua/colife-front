@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -16,6 +16,7 @@ import { getMe } from "../services/userService";
 import { getMyActivities, getAvailableActivities } from "../services/activityService";
 import { HomeWelcomeSection } from "../components/home/HomeWelcomeSection";
 import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
+import { EditActivityModal } from "../components/EditActivityModal";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
 import type { ActivityResponse } from "../types/activity";
 import { getTypeConfig } from "../utils/activityDisplay";
@@ -97,6 +98,9 @@ export function HomePage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailMode, setDetailMode] = useState<"organizer" | "available">("available");
 
+  const [editActivity, setEditActivity] = useState<ActivityResponse | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -127,6 +131,31 @@ export function HomePage() {
     setDetailMode(mode);
     setDetailOpen(true);
   };
+
+  const handleEdit = (a: ActivityResponse) => {
+    setDetailOpen(false);
+    setEditActivity(a);
+    setEditOpen(true);
+  };
+
+  const handleEditSuccess = (updated: ActivityResponse) => {
+    setOrganizedActivities((prev) =>
+      prev.map((a) => (a.id === updated.id ? updated : a))
+    );
+  };
+
+  const handleDeleted = useCallback((id: number) => {
+    setOrganizedActivities((prev) => prev.filter((a) => a.id !== id));
+    setDetail(null);
+    setDetailOpen(false);
+    setEditActivity((e) => (e?.id === id ? null : e));
+  }, []);
+
+  useEffect(() => {
+    if (editActivity === null && editOpen) {
+      setEditOpen(false);
+    }
+  }, [editActivity, editOpen]);
 
   const nextActivity = getNextActivity(organizedActivities);
 
@@ -416,7 +445,21 @@ export function HomePage() {
         </div>
       </div>
 
-      <ActivityDetailModal activity={detail} open={detailOpen} onOpenChange={setDetailOpen} mode={detailMode} />
+      <ActivityDetailModal
+        activity={detail}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        mode={detailMode}
+        onEdit={handleEdit}
+        onDeleted={handleDeleted}
+      />
+
+      <EditActivityModal
+        activity={editActivity}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSuccess={handleEditSuccess}
+      />
     </div>
   );
 }
