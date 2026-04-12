@@ -1,3 +1,10 @@
+## v0.2.0 - 2026-04-12
+
+### 🚀 Features
+- feat(activité): inscription/désinscription à une activité (#15) (#16)
+
+---
+
 ## v0.1.0 - 2026-04-06
 
 ### 🚀 Features
