@@ -10,11 +10,17 @@ import {
   Trash2,
   FileText,
   Loader2,
+  UserMinus,
 } from "lucide-react";
-import { deleteActivity } from "../../services/activityService";
+import {
+  deleteActivity,
+  subscribeToActivity,
+  unsubscribeFromActivity,
+} from "../../services/activityService";
 import { ApiRequestError } from "../../services/api";
 import type { ActivityResponse } from "../../types/activity";
 import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
+import { MessageModal } from "../ui/MessageModal";
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -54,6 +60,19 @@ type ActivityDetailModalProps = {
   onEdit?: (activity: ActivityResponse) => void;
   /** Appelé après suppression réussie (retrait des listes côté parent). */
   onDeleted?: (activityId: number) => void;
+  /** Appelé après inscription réussie (mise à jour des listes côté parent). */
+  onSubscribed?: (updated: ActivityResponse) => void;
+  /** Appelé après désinscription réussie. */
+  onUnsubscribed?: (updated: ActivityResponse) => void;
+  /**
+   * Si défini, les erreurs API de désinscription sont remontées (ex. modale sur la page).
+   * Sinon, affichage dans une modale interne au détail.
+   */
+  onUnsubscribeError?: (message: string) => void;
+  /**
+   * Activité ouverte en tant que participant déjà inscrit (ex. depuis « À venir » ou le planning).
+   */
+  isSubscribed?: boolean;
 };
 
 /* ── Composant ──────────────────────────────────────────────────────────── */
@@ -67,31 +86,54 @@ export function ActivityDetailModal({
   mode = "available",
   onEdit,
   onDeleted,
+  onSubscribed,
+  onUnsubscribed,
+  onUnsubscribeError,
+  isSubscribed = false,
 }: ActivityDetailModalProps) {
   const [deletePhase, setDeletePhase] = useState<DeletePhase>("idle");
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [subscribeSubmitting, setSubscribeSubmitting] = useState(false);
+  const [subscribeErrorModalMessage, setSubscribeErrorModalMessage] = useState<string | null>(null);
+  const [unsubscribeSubmitting, setUnsubscribeSubmitting] = useState(false);
+  const [unsubscribeErrorModalMessage, setUnsubscribeErrorModalMessage] = useState<string | null>(null);
+  const [subscribeDone, setSubscribeDone] = useState(false);
+  const [localActivity, setLocalActivity] = useState<ActivityResponse | null>(null);
 
   useEffect(() => {
     if (!open) {
       setDeletePhase("idle");
       setDeleteSubmitting(false);
       setDeleteError(null);
+      setSubscribeSubmitting(false);
+      setSubscribeErrorModalMessage(null);
+      setUnsubscribeSubmitting(false);
+      setUnsubscribeErrorModalMessage(null);
+      setSubscribeDone(false);
+      setLocalActivity(null);
     }
   }, [open]);
 
-  if (!open || !activity) return null;
+  useEffect(() => {
+    if (open) {
+      setLocalActivity(activity);
+    }
+  }, [open, activity]);
+
+  if (!open || !activity || !localActivity) return null;
 
   const isOrganizer = mode === "organizer";
-  const canEditOrDelete = !isActivityNoLongerEditable(activity);
+  const canEditOrDelete = !isActivityNoLongerEditable(localActivity);
   const showOrganizerActions = isOrganizer && canEditOrDelete;
 
   const handleConfirmDelete = async () => {
     setDeleteError(null);
     setDeleteSubmitting(true);
     try {
-      await deleteActivity(activity.id);
-      onDeleted?.(activity.id);
+      await deleteActivity(localActivity.id);
+      onDeleted?.(localActivity.id);
       onOpenChange(false);
     } catch (e) {
       setDeleteError(
@@ -104,7 +146,60 @@ export function ActivityDetailModal({
     }
   };
 
+  const canSubscribe =
+    !isOrganizer &&
+    !isSubscribed &&
+    !subscribeDone &&
+    !subscribeSubmitting &&
+    localActivity.participantCount < localActivity.capacity;
+
+  const canUnsubscribe =
+    isSubscribed && !isOrganizer && !isActivityNoLongerEditable(localActivity);
+
+  const handleUnsubscribe = async () => {
+    setUnsubscribeErrorModalMessage(null);
+    setUnsubscribeSubmitting(true);
+    try {
+      const updated = await unsubscribeFromActivity(localActivity.id);
+      setLocalActivity(updated);
+      onUnsubscribed?.(updated);
+      onOpenChange(false);
+    } catch (e) {
+      const msg =
+        e instanceof ApiRequestError
+          ? e.message
+          : "Impossible de vous désinscrire. Réessayez.";
+      if (onUnsubscribeError) {
+        onUnsubscribeError(msg);
+      } else {
+        setUnsubscribeErrorModalMessage(msg);
+      }
+    } finally {
+      setUnsubscribeSubmitting(false);
+    }
+  };
+
+  const handleSubscribe = async () => {
+    setSubscribeErrorModalMessage(null);
+    setSubscribeSubmitting(true);
+    try {
+      const updated = await subscribeToActivity(localActivity.id);
+      setLocalActivity(updated);
+      setSubscribeDone(true);
+      onSubscribed?.(updated);
+    } catch (e) {
+      setSubscribeErrorModalMessage(
+        e instanceof ApiRequestError
+          ? e.message
+          : "Impossible de s'inscrire. Réessayez."
+      );
+    } finally {
+      setSubscribeSubmitting(false);
+    }
+  };
+
   return (
+    <>
     <div
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
       role="dialog"
@@ -131,7 +226,7 @@ export function ActivityDetailModal({
               {isOrganizer ? (
                 <Star className="h-5 w-5" />
               ) : (
-                <span className="text-xs font-bold">{getInitials(activity.organizerName)}</span>
+                <span className="text-xs font-bold">{getInitials(localActivity.organizerName)}</span>
               )}
             </div>
             <div className="min-w-0">
@@ -139,10 +234,10 @@ export function ActivityDetailModal({
                 id="activity-detail-title"
                 className="font-bold text-slate-900 text-base leading-snug line-clamp-2"
               >
-                {activity.title}
+                {localActivity.title}
               </h2>
               <span className="inline-block mt-0.5 rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-semibold text-purple-700">
-                {activity.activityType.name}
+                {localActivity.activityType.name}
               </span>
             </div>
           </div>
@@ -167,11 +262,11 @@ export function ActivityDetailModal({
           ) : (
             <div className="flex items-center gap-2">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-[11px] font-bold text-white">
-                {getInitials(activity.organizerName)}
+                {getInitials(localActivity.organizerName)}
               </span>
               <div className="flex flex-col">
                 <span className="text-[11px] text-slate-400">Organisé par</span>
-                <span className="text-sm font-semibold text-slate-800">{activity.organizerName}</span>
+                <span className="text-sm font-semibold text-slate-800">{localActivity.organizerName}</span>
               </div>
             </div>
           )}
@@ -179,34 +274,34 @@ export function ActivityDetailModal({
           {/* Infos principales */}
           <div className="rounded-xl bg-slate-50 divide-y divide-slate-100">
             <InfoRow icon={<CalendarDays className="h-4 w-4 text-purple-500" />}>
-              <span className="capitalize">{formatDateLong(activity.date)}</span>
+              <span className="capitalize">{formatDateLong(localActivity.date)}</span>
             </InfoRow>
             <InfoRow icon={<Clock className="h-4 w-4 text-blue-500" />}>
-              {formatTime(activity.startTime)} – {formatTime(activity.endTime)}
+              {formatTime(localActivity.startTime)} – {formatTime(localActivity.endTime)}
             </InfoRow>
             <InfoRow icon={<MapPin className="h-4 w-4 text-pink-500" />}>
               <div>
-                <p>{activity.location.street}</p>
-                {activity.location.complement && (
-                  <p className="text-slate-400 text-xs">{activity.location.complement}</p>
+                <p>{localActivity.location.street}</p>
+                {localActivity.location.complement && (
+                  <p className="text-slate-400 text-xs">{localActivity.location.complement}</p>
                 )}
                 <p>
-                  {activity.location.postalCode} {activity.location.city}
+                  {localActivity.location.postalCode} {localActivity.location.city}
                 </p>
               </div>
             </InfoRow>
             <InfoRow icon={<Users className="h-4 w-4 text-emerald-500" />}>
               <span>
-                <span className="font-semibold">{activity.participantCount}</span>
+                <span className="font-semibold">{localActivity.participantCount}</span>
                 {" / "}
-                <span className="font-semibold">{activity.capacity}</span> participant
-                {activity.capacity > 1 ? "s" : ""}
+                <span className="font-semibold">{localActivity.capacity}</span> participant
+                {localActivity.capacity > 1 ? "s" : ""}
               </span>
             </InfoRow>
           </div>
 
           {/* Description */}
-          {activity.description && (
+          {localActivity.description && (
             <div className="rounded-xl bg-slate-50 p-3.5">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <FileText className="h-3.5 w-3.5 text-slate-400" />
@@ -214,7 +309,7 @@ export function ActivityDetailModal({
                   Description
                 </span>
               </div>
-              <p className="text-sm text-slate-700 leading-relaxed">{activity.description}</p>
+              <p className="text-sm text-slate-700 leading-relaxed">{localActivity.description}</p>
             </div>
           )}
         </div>
@@ -255,11 +350,11 @@ export function ActivityDetailModal({
                   Supprimer cette activité ? Les inscriptions seront annulées. Cette action est irréversible
                   côté affichage (l&apos;activité ne sera plus visible).
                 </p>
-                {activity.participantCount > 0 && (
+                {localActivity.participantCount > 0 && (
                   <p className="text-xs font-medium text-amber-800 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
-                    {activity.participantCount} participant
-                    {activity.participantCount > 1 ? "s" : ""} inscrit
-                    {activity.participantCount > 1 ? "s" : ""} — ils seront désinscrits automatiquement.
+                    {localActivity.participantCount} participant
+                    {localActivity.participantCount > 1 ? "s" : ""} inscrit
+                    {localActivity.participantCount > 1 ? "s" : ""} — ils seront désinscrits automatiquement.
                   </p>
                 )}
                 {deleteError ? (
@@ -303,22 +398,76 @@ export function ActivityDetailModal({
                 </div>
               </div>
             )
+          ) : isSubscribed ? (
+            canUnsubscribe ? (
+              <button
+                type="button"
+                disabled={unsubscribeSubmitting}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 hover:border-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
+                onClick={handleUnsubscribe}
+              >
+                {unsubscribeSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                    Désinscription…
+                  </>
+                ) : (
+                  <>
+                    <UserMinus className="h-4 w-4 shrink-0" />
+                    Se désinscrire
+                  </>
+                )}
+              </button>
+            ) : (
+              <p className="text-center text-xs text-slate-500 leading-relaxed px-1 py-1">
+                Cette activité a déjà commencé ou est passée : la désinscription n&apos;est plus possible.
+              </p>
+            )
           ) : (
-            <button
-              type="button"
-              disabled={activity.participantCount >= activity.capacity}
-              className={`w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white shadow-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
-                activity.participantCount >= activity.capacity
-                  ? "cursor-not-allowed bg-slate-300 text-slate-500 shadow-none"
-                  : "bg-gradient-to-r from-blue-500 to-purple-600 shadow-purple-200 hover:brightness-105"
-              }`}
-            >
-              {activity.participantCount >= activity.capacity ? "Complet" : "S'inscrire"}
-            </button>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={handleSubscribe}
+                disabled={!canSubscribe}
+                className={`w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white shadow-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
+                  subscribeDone
+                    ? "bg-emerald-600 shadow-emerald-200"
+                    : localActivity.participantCount >= localActivity.capacity
+                      ? "cursor-not-allowed bg-slate-300 text-slate-500 shadow-none"
+                      : "bg-gradient-to-r from-blue-500 to-purple-600 shadow-purple-200 hover:brightness-105"
+                }`}
+              >
+                {subscribeSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Inscription…
+                  </>
+                ) : subscribeDone ? (
+                  "Inscrit"
+                ) : localActivity.participantCount >= localActivity.capacity ? (
+                  "Complet"
+                ) : (
+                  "S'inscrire"
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>
     </div>
+    <MessageModal
+      open={!!subscribeErrorModalMessage}
+      title="Inscription impossible"
+      message={subscribeErrorModalMessage ?? ""}
+      onClose={() => setSubscribeErrorModalMessage(null)}
+    />
+    <MessageModal
+      open={!!unsubscribeErrorModalMessage && !onUnsubscribeError}
+      title="Désinscription impossible"
+      message={unsubscribeErrorModalMessage ?? ""}
+      onClose={() => setUnsubscribeErrorModalMessage(null)}
+    />
+    </>
   );
 }
 

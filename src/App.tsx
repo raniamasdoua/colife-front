@@ -17,7 +17,7 @@ function AppContent() {
   const isAuthPage = AUTH_ROUTES.includes(location.pathname);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
       {/* Top nav + bottom tabs — hidden on auth pages */}
       {!isAuthPage && <Navigation />}
 

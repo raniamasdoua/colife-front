@@ -10,10 +10,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Compass,
-  UserCircle2,
+  Loader2,
 } from "lucide-react";
+import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
+import { MessageModal } from "../components/ui/MessageModal";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
-import { getAvailableActivities } from "../services/activityService";
+import { getAvailableActivities, subscribeToActivity } from "../services/activityService";
+import { ApiRequestError } from "../services/api";
 import type { ActivityResponse } from "../types/activity";
 import { getTypeConfig } from "../utils/activityDisplay";
 
@@ -82,10 +85,14 @@ function SkeletonCard() {
 
 function ActivityCard({
   activity,
-  onClick,
+  onOpenDetail,
+  onSubscribe,
+  isSubscribing,
 }: {
   activity: ActivityResponse;
-  onClick: () => void;
+  onOpenDetail: () => void;
+  onSubscribe: (e: React.MouseEvent) => void;
+  isSubscribing: boolean;
 }) {
   const { badge } = getTypeConfig(activity.activityType.name);
   const fill = Math.min(100, Math.round((activity.participantCount / activity.capacity) * 100));
@@ -95,10 +102,10 @@ function ActivityCard({
   return (
     <div
       className="rounded-2xl bg-white shadow-md ring-1 ring-slate-100 overflow-hidden flex flex-col transition hover:shadow-xl hover:ring-purple-200 hover:-translate-y-0.5 cursor-pointer group"
-      onClick={onClick}
+      onClick={onOpenDetail}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      onKeyDown={(e) => e.key === "Enter" && onOpenDetail()}
     >
       <div className="flex flex-col flex-1 p-4 gap-3">
         {/* Badges */}
@@ -158,119 +165,30 @@ function ActivityCard({
           <span className="truncate">{activity.organizerName}</span>
         </div>
 
-        {/* Bouton S'inscrire — visuel uniquement */}
         <button
           type="button"
-          disabled={isFull}
-          onClick={(e) => e.stopPropagation()}
-          className={`w-full rounded-xl py-2.5 text-sm font-semibold text-white shadow-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
+          disabled={isFull || isSubscribing}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSubscribe(e);
+          }}
+          className={`w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold shadow-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
             isFull
               ? "cursor-not-allowed bg-slate-300 text-slate-500 shadow-none"
-              : "bg-gradient-to-r from-blue-500 to-purple-600 shadow-purple-200/50 hover:brightness-105"
+              : "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-purple-200/50 hover:brightness-105"
           }`}
         >
-          {isFull ? "Complet" : "S'inscrire"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ── Modal détail ───────────────────────────────────────────────────────────── */
-
-function ActivityDetailModal({
-  activity,
-  open,
-  onClose,
-}: {
-  activity: ActivityResponse | null;
-  open: boolean;
-  onClose: () => void;
-}) {
-  if (!open || !activity) return null;
-
-  const { gradient, badge, icon: Icon } = getTypeConfig(activity.activityType.name);
-
-  return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
-      role="dialog"
-      aria-modal="true"
-    >
-      <button
-        type="button"
-        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-        aria-label="Fermer"
-        onClick={onClose}
-      />
-      <div className="relative z-10 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-        {/* Header coloré avec icône */}
-        <div className={`relative h-36 bg-gradient-to-br ${gradient} shrink-0 flex items-center justify-center overflow-hidden`}>
-          <div className="absolute -top-6 -right-6 h-32 w-32 rounded-full bg-white/10" />
-          <div className="absolute -bottom-8 -left-8 h-36 w-36 rounded-full bg-white/10" />
-          <Icon className="h-16 w-16 text-white/90 drop-shadow-sm relative z-10" strokeWidth={1.5} />
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-white hover:bg-black/40 transition"
-            aria-label="Fermer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <div className="absolute bottom-3 left-4">
-            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold shadow-sm ${badge}`}>
-              {activity.activityType.name}
-            </span>
-          </div>
-        </div>
-
-        {/* Corps */}
-        <div className="overflow-y-auto flex-1 p-5 space-y-4">
-          <h2 className="text-xl font-bold text-slate-900">{activity.title}</h2>
-
-          {activity.description && (
-            <p className="text-sm text-slate-600 leading-relaxed">{activity.description}</p>
+          {isSubscribing ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Inscription…
+            </>
+          ) : isFull ? (
+            "Complet"
+          ) : (
+            "S'inscrire"
           )}
-
-          <div className="space-y-2.5 text-sm text-slate-700">
-            <div className="flex items-start gap-3">
-              <Calendar className="h-4 w-4 shrink-0 mt-0.5 text-purple-500" />
-              <span>{formatDateShort(activity.date)}</span>
-            </div>
-            <div className="flex items-start gap-3">
-              <Clock className="h-4 w-4 shrink-0 mt-0.5 text-purple-500" />
-              <span>
-                {formatTime(activity.startTime)} – {formatTime(activity.endTime)}
-              </span>
-            </div>
-            <div className="flex items-start gap-3">
-              <MapPin className="h-4 w-4 shrink-0 mt-0.5 text-purple-500" />
-              <span>
-                {activity.location.street}
-                {activity.location.complement ? `, ${activity.location.complement}` : ""}
-                {" — "}{activity.location.postalCode} {activity.location.city}
-              </span>
-            </div>
-            <div className="flex items-start gap-3">
-              <Users className="h-4 w-4 shrink-0 mt-0.5 text-purple-500" />
-              <span>Capacité : {activity.capacity} participant(s)</span>
-            </div>
-            <div className="flex items-start gap-3">
-              <UserCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-purple-500" />
-              <span>Organisé par <strong>{activity.organizerName}</strong></span>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer bouton */}
-        <div className="p-4 border-t border-slate-100 shrink-0">
-          <button
-            type="button"
-            className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-md shadow-purple-200 hover:brightness-105 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
-          >
-            S'inscrire
-          </button>
-        </div>
+        </button>
       </div>
     </div>
   );
@@ -296,6 +214,10 @@ export function ExplorePage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedActivity, setSelectedActivity] = useState<ActivityResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  const [subscribingId, setSubscribingId] = useState<number | null>(null);
+  const [subscribeErrorMessage, setSubscribeErrorMessage] = useState<string | null>(null);
+  const [subscribeSuccessMessage, setSubscribeSuccessMessage] = useState<string | null>(null);
 
   /* Chargement */
   useEffect(() => {
@@ -383,6 +305,28 @@ export function ExplorePage() {
     setSelectedActivity(activity);
     setModalOpen(true);
   }
+
+  const handleSubscribeFromCard = async (activity: ActivityResponse) => {
+    setSubscribeErrorMessage(null);
+    setSubscribingId(activity.id);
+    try {
+      const updated = await subscribeToActivity(activity.id);
+      setActivities((prev) => prev.filter((a) => a.id !== updated.id));
+      setSelectedActivity((prev) => (prev?.id === updated.id ? null : prev));
+      setModalOpen(false);
+      setSubscribeSuccessMessage(
+        "Votre inscription a bien été enregistrée. Retrouvez l'activité dans votre planning et dans la section « À venir »."
+      );
+    } catch (e) {
+      const message =
+        e instanceof ApiRequestError
+          ? e.message
+          : "Impossible de s'inscrire. Réessayez.";
+      setSubscribeErrorMessage(message);
+    } finally {
+      setSubscribingId(null);
+    }
+  };
 
   return (
     <div className="relative min-h-full pb-6 overflow-x-hidden">
@@ -588,7 +532,9 @@ export function ExplorePage() {
                   <ActivityCard
                     key={activity.id}
                     activity={activity}
-                    onClick={() => openModal(activity)}
+                    onOpenDetail={() => openModal(activity)}
+                    onSubscribe={() => handleSubscribeFromCard(activity)}
+                    isSubscribing={subscribingId === activity.id}
                   />
                 ))}
               </div>
@@ -624,11 +570,36 @@ export function ExplorePage() {
         </section>
       </div>
 
-      {/* Modal détail */}
+      {/* Même modal détail que l'accueil / activités disponibles */}
       <ActivityDetailModal
         activity={selectedActivity}
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onOpenChange={setModalOpen}
+        mode="available"
+        onSubscribed={(updated) => {
+          setSubscribeErrorMessage(null);
+          setActivities((prev) => prev.filter((a) => a.id !== updated.id));
+          setSelectedActivity(null);
+          setModalOpen(false);
+          setSubscribeSuccessMessage(
+            "Votre inscription a bien été enregistrée. Retrouvez l'activité dans votre planning et dans la section « À venir »."
+          );
+        }}
+      />
+
+      <MessageModal
+        open={!!subscribeSuccessMessage}
+        title="Inscription réussie"
+        message={subscribeSuccessMessage ?? ""}
+        variant="success"
+        confirmLabel="OK"
+        onClose={() => setSubscribeSuccessMessage(null)}
+      />
+      <MessageModal
+        open={!!subscribeErrorMessage}
+        title="Inscription impossible"
+        message={subscribeErrorMessage ?? ""}
+        onClose={() => setSubscribeErrorMessage(null)}
       />
     </div>
   );
