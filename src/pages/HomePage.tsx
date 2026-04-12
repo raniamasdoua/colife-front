@@ -5,6 +5,7 @@ import {
   Calendar,
   CalendarDays,
   Compass,
+  Loader2,
   MapPin,
   Star,
   Users,
@@ -13,10 +14,17 @@ import {
   Flame,
 } from "lucide-react";
 import { getMe } from "../services/userService";
-import { getMyActivities, getAvailableActivities } from "../services/activityService";
+import {
+  getMyActivities,
+  getAvailableActivities,
+  getRegisteredActivities,
+  subscribeToActivity,
+} from "../services/activityService";
+import { ApiRequestError } from "../services/api";
 import { HomeWelcomeSection } from "../components/home/HomeWelcomeSection";
 import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
 import { EditActivityModal } from "../components/EditActivityModal";
+import { MessageModal } from "../components/ui/MessageModal";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
 import type { ActivityResponse } from "../types/activity";
 import { getTypeConfig } from "../utils/activityDisplay";
@@ -45,8 +53,8 @@ function parseDate(dateStr: string): Date {
   return new Date(y, m - 1, d);
 }
 
-/** Retourne la prochaine activité (la plus proche dans le futur) */
-function getNextActivity(activities: ActivityResponse[]): ActivityResponse | null {
+/** Prochaines activités à venir (jour courant ou futur), triées par date / heure */
+function getNextActivities(activities: ActivityResponse[], limit: number): ActivityResponse[] {
   const now = new Date();
   const upcoming = activities
     .filter((a) => {
@@ -60,7 +68,12 @@ function getNextActivity(activities: ActivityResponse[]): ActivityResponse | nul
       if (da !== db) return da - db;
       return a.startTime.localeCompare(b.startTime);
     });
-  return upcoming[0] ?? null;
+  return upcoming.slice(0, limit);
+}
+
+/** La plus proche activité à venir */
+function getNextActivity(activities: ActivityResponse[]): ActivityResponse | null {
+  return getNextActivities(activities, 1)[0] ?? null;
 }
 
 /* ── Squelettes ─────────────────────────────────────────────────────────────── */
@@ -74,14 +87,18 @@ function SkeletonHero() {
 function SkeletonAvailable() {
   return (
     <div className="animate-pulse overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-100">
-      <div className="flex gap-2.5 p-3">
-        <div className="h-20 w-20 shrink-0 rounded-xl bg-slate-200" />
-        <div className="flex-1 space-y-2 pt-1">
-          <div className="h-4 rounded bg-slate-200 w-3/4" />
-          <div className="h-3 rounded bg-slate-200 w-1/2" />
-          <div className="h-3 rounded bg-slate-200 w-2/3" />
-          <div className="h-7 rounded-full bg-slate-200 mt-2" />
+      <div className="flex flex-col gap-3 p-4">
+        <div className="flex gap-2">
+          <div className="h-5 rounded-full bg-slate-200 w-20" />
+          <div className="h-5 rounded-full bg-slate-200 w-14" />
         </div>
+        <div className="h-5 rounded bg-slate-200 w-full" />
+        <div className="h-4 rounded bg-slate-200 w-4/5" />
+        <div className="space-y-2 pt-1">
+          <div className="h-3.5 rounded bg-slate-200 w-full" />
+          <div className="h-3.5 rounded bg-slate-200 w-5/6" />
+        </div>
+        <div className="h-10 rounded-xl bg-slate-200 mt-1" />
       </div>
     </div>
   );
@@ -92,6 +109,7 @@ function SkeletonAvailable() {
 export function HomePage() {
   const [firstName, setFirstName] = useState<string>("…");
   const [organizedActivities, setOrganizedActivities] = useState<ActivityResponse[]>([]);
+  const [registeredActivities, setRegisteredActivities] = useState<ActivityResponse[]>([]);
   const [availableActivities, setAvailableActivities] = useState<ActivityResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<ActivityResponse | null>(null);
@@ -101,18 +119,27 @@ export function HomePage() {
   const [editActivity, setEditActivity] = useState<ActivityResponse | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
+  /** Inscription directe depuis les cartes « Disponibles » */
+  const [subscribingId, setSubscribingId] = useState<number | null>(null);
+  const [subscribeErrorMessage, setSubscribeErrorMessage] = useState<string | null>(null);
+  const [subscribeSuccessMessage, setSubscribeSuccessMessage] = useState<string | null>(null);
+  const [unsubscribeErrorMessage, setUnsubscribeErrorMessage] = useState<string | null>(null);
+  const [unsubscribeSuccessMessage, setUnsubscribeSuccessMessage] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [me, organized, available] = await Promise.all([
+        const [me, organized, registered, available] = await Promise.all([
           getMe(),
           getMyActivities(),
+          getRegisteredActivities(),
           getAvailableActivities(),
         ]);
         if (!cancelled) {
           setFirstName(me.firstName?.trim() || "toi");
           setOrganizedActivities(organized);
+          setRegisteredActivities(registered);
           setAvailableActivities(available);
           setLoading(false);
         }
@@ -151,6 +178,60 @@ export function HomePage() {
     setEditActivity((e) => (e?.id === id ? null : e));
   }, []);
 
+  const handleUnsubscribed = useCallback((updated: ActivityResponse) => {
+    setSubscribeErrorMessage(null);
+    setSubscribeSuccessMessage(null);
+    setUnsubscribeErrorMessage(null);
+    setUnsubscribeSuccessMessage(
+      "Votre désinscription a bien été enregistrée. L'activité réapparaîtra parmi les disponibles si des places sont libres."
+    );
+    setRegisteredActivities((prev) => prev.filter((a) => a.id !== updated.id));
+    setDetail((prev) => (prev?.id === updated.id ? null : prev));
+    setDetailOpen(false);
+  }, []);
+
+  const handleSubscribed = useCallback((updated: ActivityResponse) => {
+    setUnsubscribeErrorMessage(null);
+    setUnsubscribeSuccessMessage(null);
+    setSubscribeErrorMessage(null);
+    setSubscribeSuccessMessage(
+      "Votre inscription a bien été enregistrée. Retrouvez l'activité dans votre planning et dans la section « À venir »."
+    );
+    setAvailableActivities((prev) => prev.filter((a) => a.id !== updated.id));
+    setDetail((prev) => (prev?.id === updated.id ? null : prev));
+    setDetailOpen(false);
+    setRegisteredActivities((prev) => {
+      if (prev.some((a) => a.id === updated.id)) {
+        return prev.map((a) => (a.id === updated.id ? updated : a));
+      }
+      return [...prev, updated].sort((a, b) => {
+        const da = parseDate(a.date).getTime();
+        const db = parseDate(b.date).getTime();
+        if (da !== db) return da - db;
+        return a.startTime.localeCompare(b.startTime);
+      });
+    });
+  }, []);
+
+  const handleSubscribeFromCard = async (activity: ActivityResponse) => {
+    setSubscribeErrorMessage(null);
+    setUnsubscribeErrorMessage(null);
+    setUnsubscribeSuccessMessage(null);
+    setSubscribingId(activity.id);
+    try {
+      const updated = await subscribeToActivity(activity.id);
+      handleSubscribed(updated);
+    } catch (e) {
+      const message =
+        e instanceof ApiRequestError
+          ? e.message
+          : "Impossible de s'inscrire. Réessayez.";
+      setSubscribeErrorMessage(message);
+    } finally {
+      setSubscribingId(null);
+    }
+  };
+
   useEffect(() => {
     if (editActivity === null && editOpen) {
       setEditOpen(false);
@@ -158,6 +239,7 @@ export function HomePage() {
   }, [editActivity, editOpen]);
 
   const nextActivity = getNextActivity(organizedActivities);
+  const upcomingRegistered = getNextActivities(registeredActivities, 2);
 
   const categories = [
     { name: "Sport", icon: Trophy, color: "from-blue-500 to-cyan-500" },
@@ -179,7 +261,7 @@ export function HomePage() {
         <HomeWelcomeSection
           firstName={firstName}
           organizedCount={organizedActivities.length}
-          registeredCount={0}
+          registeredCount={registeredActivities.length}
           availableCount={availableActivities.length}
         />
 
@@ -313,22 +395,107 @@ export function HomePage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
-            <div className="rounded-2xl bg-white p-8 text-center shadow-md ring-1 ring-slate-100">
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100">
-                <Flame className="h-7 w-7 text-purple-500" />
+            {loading ? (
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:gap-4">
+                {[0, 1].map((i) => (
+                  <div
+                    key={i}
+                    className="h-40 animate-pulse rounded-2xl bg-white shadow-md ring-1 ring-slate-100"
+                  />
+                ))}
               </div>
-              <p className="font-semibold text-slate-700">Aucune inscription pour l'instant</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Explorez les activités disponibles et inscrivez-vous.
-              </p>
-              <Link
-                to="/explore"
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:brightness-105 transition"
-              >
-                <Compass className="h-4 w-4" />
-                Explorer les activités
-              </Link>
-            </div>
+            ) : upcomingRegistered.length === 0 ? (
+              <div className="rounded-2xl bg-white p-8 text-center shadow-md ring-1 ring-slate-100">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100">
+                  <Flame className="h-7 w-7 text-purple-500" />
+                </div>
+                <p className="font-semibold text-slate-700">Aucune inscription pour l&apos;instant</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Explorez les activités disponibles et inscrivez-vous.
+                </p>
+                <Link
+                  to="/explore"
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:brightness-105 transition"
+                >
+                  <Compass className="h-4 w-4" />
+                  Explorer les activités
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:gap-4">
+                {upcomingRegistered.map((activity) => {
+                  const { badge } = getTypeConfig(activity.activityType.name);
+                  const fill = Math.min(
+                    100,
+                    Math.round((activity.participantCount / activity.capacity) * 100)
+                  );
+                  const isFull = activity.participantCount >= activity.capacity;
+                  return (
+                    <button
+                      key={activity.id}
+                      type="button"
+                      onClick={() => openDetail(activity, "available")}
+                      className="flex flex-col overflow-hidden rounded-2xl bg-white text-left shadow-md ring-1 ring-slate-100 transition hover:shadow-lg hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+                    >
+                      <div className="h-1 bg-gradient-to-r from-purple-500 to-pink-600" aria-hidden />
+                      <div className="flex flex-col flex-1 p-4 gap-3">
+                        <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-700 ring-1 ring-purple-100">
+                            <Flame className="h-3 w-3" />
+                            Inscrit
+                          </span>
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge}`}>
+                            {activity.activityType.name}
+                          </span>
+                        </div>
+                        <h3 className="line-clamp-2 text-base font-bold text-slate-900 leading-snug">
+                          {activity.title}
+                        </h3>
+                        <div className="space-y-1.5 text-xs text-slate-600">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+                            <span>
+                              {formatDateShort(activity.date)} · {formatTime(activity.startTime)} –{" "}
+                              {formatTime(activity.endTime)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+                            <span className="line-clamp-1">{activity.location.city}</span>
+                          </div>
+                          <div className="flex items-center gap-2 pt-0.5">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-[10px] font-bold text-white">
+                              {getInitials(activity.organizerName)}
+                            </span>
+                            <span className="line-clamp-1 font-medium text-slate-700">
+                              {activity.organizerName}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-auto space-y-1.5 pt-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-700">
+                              {activity.participantCount}/{activity.capacity} participants
+                            </span>
+                            {isFull && (
+                              <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                                Complet
+                              </span>
+                            )}
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full ${isFull ? "bg-red-400" : "bg-gradient-to-r from-purple-500 to-pink-500"}`}
+                              style={{ width: `${fill}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           {/* ── Disponibles ── */}
@@ -352,7 +519,7 @@ export function HomePage() {
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <SkeletonAvailable key={i} />
                 ))}
@@ -366,7 +533,7 @@ export function HomePage() {
                 <p className="mt-1 text-xs text-slate-500">Vos collègues n'ont pas encore publié d'activités.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:gap-4">
                 {availableActivities.slice(0, 4).map((activity) => {
                   const { badge } = getTypeConfig(activity.activityType.name);
                   const fill = Math.min(100, Math.round((activity.participantCount / activity.capacity) * 100));
@@ -375,65 +542,74 @@ export function HomePage() {
 
                   return (
                     <div key={activity.id} className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-100 transition hover:shadow-lg hover:-translate-y-0.5">
-                      <div className="flex flex-col flex-1 p-3 gap-2">
+                      <div className="flex flex-col flex-1 p-4 gap-3">
                         <button
                           type="button"
-                          onClick={() => openDetail(activity)}
-                          className="text-left focus:outline-none"
+                          onClick={() => openDetail(activity, "available")}
+                          className="text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 rounded-lg"
                         >
                           {/* Badge type + Hot */}
-                          <div className="mb-2 flex flex-wrap items-center gap-1">
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge}`}>
+                          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge}`}>
                               {activity.activityType.name}
                             </span>
                             {isHot && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white">
-                                <Flame className="h-2.5 w-2.5" />
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-500 px-2 py-0.5 text-xs font-bold text-white">
+                                <Flame className="h-3 w-3" />
                                 Hot
                               </span>
                             )}
                           </div>
 
                           {/* Titre */}
-                          <h3 className="line-clamp-2 text-xs font-bold text-slate-900 leading-snug mb-2">
+                          <h3 className="line-clamp-2 text-base font-bold text-slate-900 leading-snug mb-2">
                             {activity.title}
                           </h3>
 
                           {/* Infos */}
-                          <div className="space-y-1 text-[10px] text-slate-500">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3 shrink-0" />
+                          <div className="space-y-1.5 text-xs text-slate-600">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-3.5 w-3.5 shrink-0 text-purple-400" />
                               <span className="line-clamp-1">{formatDateShort(activity.date)}</span>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3 shrink-0" />
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />
                               <span className="line-clamp-1">{activity.location.city}</span>
                             </div>
-                            <div className="flex items-center justify-between gap-1">
-                              <div className="flex items-center gap-1 min-w-0">
-                                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-[8px] font-bold text-white">
+                            <div className="flex items-center justify-between gap-2 pt-0.5">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-[10px] font-bold text-white">
                                   {getInitials(activity.organizerName)}
                                 </span>
-                                <span className="line-clamp-1">{activity.organizerName}</span>
+                                <span className="line-clamp-1 font-medium text-slate-700">{activity.organizerName}</span>
                               </div>
-                              <span className={`shrink-0 font-semibold ${isFull ? "text-red-600" : isHot ? "text-orange-600" : "text-slate-600"}`}>
+                              <span className={`shrink-0 text-sm font-semibold tabular-nums ${isFull ? "text-red-600" : isHot ? "text-orange-600" : "text-slate-700"}`}>
                                 {activity.participantCount}/{activity.capacity}
                               </span>
                             </div>
                           </div>
                         </button>
 
-                        {/* Bouton S'inscrire — visuel uniquement */}
                         <button
                           type="button"
-                          disabled={isFull}
-                          className={`mt-auto w-full rounded-xl py-1.5 text-[10px] font-semibold text-white transition focus:outline-none ${
+                          disabled={isFull || subscribingId === activity.id}
+                          onClick={() => handleSubscribeFromCard(activity)}
+                          className={`mt-auto flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
                             isFull
                               ? "cursor-not-allowed bg-slate-300 text-slate-500"
-                              : "bg-gradient-to-r from-blue-500 to-purple-600 hover:brightness-105"
+                              : "bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:brightness-105"
                           }`}
                         >
-                          {isFull ? "Complet" : "S'inscrire"}
+                          {subscribingId === activity.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Inscription…
+                            </>
+                          ) : isFull ? (
+                            "Complet"
+                          ) : (
+                            "S'inscrire"
+                          )}
                         </button>
                       </div>
                     </div>
@@ -452,6 +628,14 @@ export function HomePage() {
         mode={detailMode}
         onEdit={handleEdit}
         onDeleted={handleDeleted}
+        onSubscribed={handleSubscribed}
+        onUnsubscribed={handleUnsubscribed}
+        onUnsubscribeError={setUnsubscribeErrorMessage}
+        isSubscribed={
+          detailMode === "available" &&
+          !!detail &&
+          registeredActivities.some((a) => a.id === detail.id)
+        }
       />
 
       <EditActivityModal
@@ -459,6 +643,35 @@ export function HomePage() {
         open={editOpen}
         onOpenChange={setEditOpen}
         onSuccess={handleEditSuccess}
+      />
+
+      <MessageModal
+        open={!!subscribeSuccessMessage}
+        title="Inscription réussie"
+        message={subscribeSuccessMessage ?? ""}
+        variant="success"
+        confirmLabel="OK"
+        onClose={() => setSubscribeSuccessMessage(null)}
+      />
+      <MessageModal
+        open={!!subscribeErrorMessage}
+        title="Inscription impossible"
+        message={subscribeErrorMessage ?? ""}
+        onClose={() => setSubscribeErrorMessage(null)}
+      />
+      <MessageModal
+        open={!!unsubscribeSuccessMessage}
+        title="Désinscription réussie"
+        message={unsubscribeSuccessMessage ?? ""}
+        variant="success"
+        confirmLabel="OK"
+        onClose={() => setUnsubscribeSuccessMessage(null)}
+      />
+      <MessageModal
+        open={!!unsubscribeErrorMessage}
+        title="Désinscription impossible"
+        message={unsubscribeErrorMessage ?? ""}
+        onClose={() => setUnsubscribeErrorMessage(null)}
       />
     </div>
   );

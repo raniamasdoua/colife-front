@@ -115,7 +115,7 @@ export function Navigation() {
                     <Icon className="w-5 h-5" />
                   </div>
                   <span
-                    className={`text-[11px] font-semibold transition-all ${
+                    className={`text-xs font-semibold transition-all ${
                       isActive ? "scale-105" : ""
                     }`}
                   >
