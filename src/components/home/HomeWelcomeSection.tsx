@@ -49,7 +49,7 @@ export function HomeWelcomeSection({
               <p className="mt-1.5 text-lg sm:text-2xl font-bold tabular-nums text-slate-900">
                 {organizedCount}
               </p>
-              <p className="mt-0.5 text-[11px] sm:text-xs font-medium text-slate-600 leading-snug">
+              <p className="mt-0.5 text-xs font-medium text-slate-600 leading-snug">
                 J&apos;organise
               </p>
             </div>
@@ -58,7 +58,7 @@ export function HomeWelcomeSection({
               <p className="mt-1.5 text-lg sm:text-2xl font-bold tabular-nums text-slate-900">
                 {registeredCount}
               </p>
-              <p className="mt-0.5 text-[11px] sm:text-xs font-medium text-slate-600 leading-snug">
+              <p className="mt-0.5 text-xs font-medium text-slate-600 leading-snug">
                 Inscrit
               </p>
             </div>
@@ -67,7 +67,7 @@ export function HomeWelcomeSection({
               <p className="mt-1.5 text-lg sm:text-2xl font-bold tabular-nums text-slate-900">
                 {availableCount}
               </p>
-              <p className="mt-0.5 text-[11px] sm:text-xs font-medium text-slate-600 leading-snug">
+              <p className="mt-0.5 text-xs font-medium text-slate-600 leading-snug">
                 Disponibles
               </p>
             </div>

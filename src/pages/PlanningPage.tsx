@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Link } from "react-router-dom";
 import {
   CalendarDays,
   Clock,
@@ -15,11 +16,12 @@ import {
 
 type FilterMode = "organized" | "registered" | "all";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
-import { getMyActivities } from "../services/activityService";
+import { getMyActivities, getRegisteredActivities } from "../services/activityService";
 import { getTypeConfig } from "../utils/activityDisplay";
 import { useCreateActivityModal } from "../context/CreateActivityModalContext";
-import { ActivityDetailModal } from "../components/planning/ActivityDetailModal";
+import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
 import { EditActivityModal } from "../components/EditActivityModal";
+import { MessageModal } from "../components/ui/MessageModal";
 import type { ActivityResponse } from "../types/activity";
 
 const PAGE_SIZE = 10;
@@ -169,7 +171,8 @@ function ActivityCard({
 /* ── Page principale ──────────────────────────────────────────────────────── */
 
 export function PlanningPage() {
-  const [activities, setActivities] = useState<ActivityResponse[]>([]);
+  const [organizedActivities, setOrganizedActivities] = useState<ActivityResponse[]>([]);
+  const [registeredActivities, setRegisteredActivities] = useState<ActivityResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -184,15 +187,43 @@ export function PlanningPage() {
   const [editActivity, setEditActivity] = useState<ActivityResponse | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
+  const [unsubscribeErrorMessage, setUnsubscribeErrorMessage] = useState<string | null>(null);
+  const [unsubscribeSuccessMessage, setUnsubscribeSuccessMessage] = useState<string | null>(null);
+
   const listRef = useRef<HTMLDivElement>(null);
   const { openCreate } = useCreateActivityModal();
 
+  const handleUnsubscribedFromDetail = useCallback((updated: ActivityResponse) => {
+    setUnsubscribeErrorMessage(null);
+    setUnsubscribeSuccessMessage(
+      "Votre désinscription a bien été enregistrée. L'activité ne figure plus dans vos inscriptions."
+    );
+    setRegisteredActivities((prev) => prev.filter((a) => a.id !== updated.id));
+    setSelectedActivity(null);
+    setModalOpen(false);
+  }, []);
+
   const handleActivityDeleted = useCallback((id: number) => {
-    setActivities((prev) => prev.filter((a) => a.id !== id));
+    setOrganizedActivities((prev) => prev.filter((a) => a.id !== id));
+    setRegisteredActivities((prev) => prev.filter((a) => a.id !== id));
     setSelectedActivity(null);
     setModalOpen(false);
     setEditActivity((e) => (e?.id === id ? null : e));
   }, []);
+
+  const organizedIdSet = useMemo(
+    () => new Set(organizedActivities.map((a) => a.id)),
+    [organizedActivities]
+  );
+
+  const activities = useMemo(() => {
+    if (filterMode === "organized") return organizedActivities;
+    if (filterMode === "registered") return registeredActivities;
+    const map = new Map<number, ActivityResponse>();
+    organizedActivities.forEach((a) => map.set(a.id, a));
+    registeredActivities.forEach((a) => map.set(a.id, a));
+    return Array.from(map.values());
+  }, [filterMode, organizedActivities, registeredActivities]);
 
   useEffect(() => {
     if (editActivity === null && editOpen) {
@@ -208,8 +239,14 @@ export function PlanningPage() {
     let cancelled = false;
     (async () => {
       try {
-        const data = await getMyActivities();
-        if (!cancelled) setActivities(data);
+        const [organized, registered] = await Promise.all([
+          getMyActivities(),
+          getRegisteredActivities(),
+        ]);
+        if (!cancelled) {
+          setOrganizedActivities(organized);
+          setRegisteredActivities(registered);
+        }
       } catch {
         if (!cancelled) setError("Impossible de charger vos activités.");
       } finally {
@@ -446,26 +483,7 @@ export function PlanningPage() {
           ))}
         </div>
 
-        {/* ── Placeholder "Inscriptions" (pas encore implémenté backend) ──── */}
-        {filterMode === "registered" && (
-          <div className="rounded-2xl bg-white p-10 text-center shadow-md ring-1 ring-slate-100">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100">
-              <CheckCircle2 className="h-8 w-8 text-purple-400" />
-            </div>
-            <p className="font-semibold text-slate-700">Mes inscriptions</p>
-            <p className="mt-1.5 text-sm text-slate-400 max-w-xs mx-auto leading-relaxed">
-              Retrouvez ici toutes les activités auxquelles vous vous êtes
-              inscrit, organisées par d'autres collaborateurs.
-            </p>
-            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Fonctionnalité en cours de développement
-            </span>
-          </div>
-        )}
-
         {/* ── Mise en page deux colonnes ──────────────────────────────────── */}
-        {filterMode !== "registered" && (
         <div className="md:flex md:items-start md:gap-5">
 
           {/* ── Colonne gauche : mini-calendrier (sticky sur desktop) ─────── */}
@@ -581,7 +599,13 @@ export function PlanningPage() {
             {/* En-tête liste */}
             <div className="flex items-center gap-2 mb-3">
               <h2 className="text-base font-bold text-slate-900 capitalize">
-                {selectedDate ? formatDateLong(selectedDate) : "Toutes mes activités"}
+                {selectedDate
+                  ? formatDateLong(selectedDate)
+                  : filterMode === "registered"
+                    ? "Mes inscriptions"
+                    : filterMode === "organized"
+                      ? "Mes activités"
+                      : "Tout mon planning"}
               </h2>
               {!loading && displayed.length > 0 && (
                 <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-700">
@@ -627,14 +651,27 @@ export function PlanningPage() {
                 <p className="font-semibold text-slate-700">
                   {selectedDate
                     ? "Aucune activité ce jour"
-                    : "Aucune activité à venir"}
+                    : filterMode === "registered"
+                      ? "Aucune inscription à venir"
+                      : "Aucune activité à venir"}
                 </p>
                 <p className="mt-1 text-sm text-slate-400 max-w-xs mx-auto">
                   {selectedDate
                     ? "Ce jour est libre. Sélectionnez un autre jour ou effacez la sélection."
-                    : "Vous n'avez pas encore d'activité planifiée."}
+                    : filterMode === "registered"
+                      ? "Explorez les activités publiées par vos collègues et inscrivez-vous."
+                      : "Vous n'avez pas encore d'activité planifiée."}
                 </p>
-                {!selectedDate && (
+                {!selectedDate && filterMode === "registered" && (
+                  <Link
+                    to="/explore"
+                    className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-purple-300/30 hover:brightness-105 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Explorer les activités
+                  </Link>
+                )}
+                {!selectedDate && filterMode !== "registered" && (
                   <button
                     type="button"
                     onClick={openCreate}
@@ -656,7 +693,9 @@ export function PlanningPage() {
                     activity={a}
                     today={today}
                     onClick={() => openActivity(a)}
-                    showOrganizerBadge={filterMode === "all"}
+                    showOrganizerBadge={
+                      filterMode === "all" && organizedIdSet.has(a.id)
+                    }
                   />
                 ))}
               </div>
@@ -716,7 +755,9 @@ export function PlanningPage() {
                             activity={a}
                             today={today}
                             onClick={() => openActivity(a)}
-                            showOrganizerBadge={filterMode === "all"}
+                            showOrganizerBadge={
+                              filterMode === "all" && organizedIdSet.has(a.id)
+                            }
                           />
                         ))}
                       </div>
@@ -756,20 +797,45 @@ export function PlanningPage() {
             )}
           </div>
         </div>
-        )} {/* fin filterMode !== 'registered' */}
       </div>
 
       {/* ── Modal de détail ─────────────────────────────────────────────────── */}
       <ActivityDetailModal
         activity={selectedActivity}
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onOpenChange={setModalOpen}
+        mode={
+          selectedActivity && organizedIdSet.has(selectedActivity.id)
+            ? "organizer"
+            : "available"
+        }
+        isSubscribed={
+          !!selectedActivity &&
+          registeredActivities.some((a) => a.id === selectedActivity.id)
+        }
         onEdit={(a) => {
           setModalOpen(false);
           setEditActivity(a);
           setEditOpen(true);
         }}
         onDeleted={handleActivityDeleted}
+        onUnsubscribed={handleUnsubscribedFromDetail}
+        onUnsubscribeError={setUnsubscribeErrorMessage}
+      />
+
+      <MessageModal
+        open={!!unsubscribeSuccessMessage}
+        title="Désinscription réussie"
+        message={unsubscribeSuccessMessage ?? ""}
+        variant="success"
+        confirmLabel="OK"
+        onClose={() => setUnsubscribeSuccessMessage(null)}
+      />
+      <MessageModal
+        open={!!unsubscribeErrorMessage}
+        title="Désinscription impossible"
+        message={unsubscribeErrorMessage ?? ""}
+        onClose={() => setUnsubscribeErrorMessage(null)}
       />
 
       {/* ── Modal de modification ────────────────────────────────────────────── */}
@@ -778,7 +844,12 @@ export function PlanningPage() {
         open={editOpen}
         onOpenChange={setEditOpen}
         onSuccess={(updated) => {
-          setActivities((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+          setOrganizedActivities((prev) =>
+            prev.map((a) => (a.id === updated.id ? updated : a))
+          );
+          setRegisteredActivities((prev) =>
+            prev.map((a) => (a.id === updated.id ? updated : a))
+          );
           setSelectedActivity((prev) => (prev?.id === updated.id ? updated : prev));
         }}
       />
