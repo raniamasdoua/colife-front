@@ -56,13 +56,15 @@ function Toggle({
 function Toast({
   message,
   type,
+  adminShell,
 }: {
   message: string;
   type: "success" | "error";
+  adminShell?: boolean;
 }) {
   return (
     <div
-      className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white transition-all ${
+      className={`fixed ${adminShell ? "bottom-6" : "bottom-20"} left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white transition-all ${
         type === "success" ? "bg-green-600" : "bg-red-600"
       }`}
     >
@@ -106,8 +108,13 @@ function formatDate(iso: string): string {
   });
 }
 
+type ProfilePageProps = {
+  /** Affichage dans le shell admin (sans fond plein écran ni bandeau dupliqué) */
+  adminShell?: boolean;
+};
+
 // ── ProfilePage ───────────────────────────────────────────────────────────────
-export function ProfilePage() {
+export function ProfilePage({ adminShell = false }: ProfilePageProps) {
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -302,43 +309,51 @@ export function ProfilePage() {
     },
   ];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      {/* ── Toast ── */}
-      {toast && <Toast message={toast.message} type={toast.type} />}
+  const rootClass = adminShell
+    ? "w-full"
+    : "min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50";
 
-      {/* ── En-tête : même patron que la carte d’accueil (barre dégradée + carte blanche) ── */}
-      <section className={`${PAGE_CONTAINER_CLASS} pt-4 pb-1`} aria-label="Profil">
-        <div className="rounded-2xl bg-white shadow-md shadow-slate-200/50 ring-1 ring-slate-200/80 overflow-hidden">
-          <div
-            className="h-1.5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600"
-            aria-hidden
-          />
-          <div className="p-4 sm:p-5">
-            <div className="flex items-start gap-3 sm:gap-4">
-              <div
-                className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white shadow-md"
-                aria-hidden
-              >
-                <User className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2} />
-              </div>
-              <div className="min-w-0 flex-1 pt-0.5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">
-                  Compte
-                </p>
-                <h1 className="mt-0.5 text-lg sm:text-xl font-bold tracking-tight text-slate-900">
-                  Mon profil
-                </h1>
-                <p className="mt-1 text-sm text-slate-500">
-                  Gérez vos informations personnelles
-                </p>
+  return (
+    <div className={rootClass}>
+      {/* ── Toast ── */}
+      {toast && (
+        <Toast message={toast.message} type={toast.type} adminShell={adminShell} />
+      )}
+
+      {/* ── En-tête (masqué dans le shell admin : le titre est dans la barre du haut) ── */}
+      {!adminShell && (
+        <section className={`${PAGE_CONTAINER_CLASS} pt-4 pb-1`} aria-label="Profil">
+          <div className="rounded-2xl bg-white shadow-md shadow-slate-200/50 ring-1 ring-slate-200/80 overflow-hidden">
+            <div
+              className="h-1.5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600"
+              aria-hidden
+            />
+            <div className="p-4 sm:p-5">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div
+                  className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white shadow-md"
+                  aria-hidden
+                >
+                  <User className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2} />
+                </div>
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">
+                    Compte
+                  </p>
+                  <h1 className="mt-0.5 text-lg sm:text-xl font-bold tracking-tight text-slate-900">
+                    Mon profil
+                  </h1>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Gérez vos informations personnelles
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      <div className={`${PAGE_CONTAINER_CLASS} py-6`}>
+      <div className={`${PAGE_CONTAINER_CLASS} ${adminShell ? "py-2" : "py-6"}`}>
         {/* ── Profile card ── */}
         <div className="bg-white p-5 sm:p-6 mb-6 shadow-xl rounded-2xl">
           <div className="flex flex-col sm:flex-row items-center gap-5">

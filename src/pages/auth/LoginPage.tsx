@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
 import { login } from "../../services/authService";
+import { getMe } from "../../services/userService";
 
 const inputClass =
   "w-full py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 " +
@@ -41,7 +42,12 @@ export function LoginPage() {
     try {
       setLoading(true);
       await login({ email: formData.email, password: formData.password });
-      navigate("/home");
+      try {
+        const me = await getMe();
+        navigate(me.role === "ADMIN" ? "/admin/dashboard" : "/home");
+      } catch {
+        navigate("/home");
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue.");
     } finally {
