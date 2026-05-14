@@ -14,11 +14,12 @@ import {
 } from "lucide-react";
 import {
   deleteActivity,
+  getActivityParticipants,
   subscribeToActivity,
   unsubscribeFromActivity,
 } from "../../services/activityService";
 import { ApiRequestError } from "../../services/api";
-import type { ActivityResponse } from "../../types/activity";
+import type { ActivityParticipant, ActivityResponse } from "../../types/activity";
 import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
 import { MessageModal } from "../ui/MessageModal";
 
@@ -102,6 +103,10 @@ export function ActivityDetailModal({
   const [subscribeDone, setSubscribeDone] = useState(false);
   const [localActivity, setLocalActivity] = useState<ActivityResponse | null>(null);
 
+  const [participants, setParticipants] = useState<ActivityParticipant[]>([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [participantsError, setParticipantsError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!open) {
       setDeletePhase("idle");
@@ -113,6 +118,8 @@ export function ActivityDetailModal({
       setUnsubscribeErrorModalMessage(null);
       setSubscribeDone(false);
       setLocalActivity(null);
+      setParticipants([]);
+      setParticipantsError(null);
     }
   }, [open]);
 
@@ -120,6 +127,25 @@ export function ActivityDetailModal({
     if (open) {
       setLocalActivity(activity);
     }
+  }, [open, activity]);
+
+  /* Chargement des participants à l'ouverture */
+  useEffect(() => {
+    if (!open || !activity) return;
+    let cancelled = false;
+    setParticipants([]);
+    setParticipantsError(null);
+    setParticipantsLoading(true);
+    getActivityParticipants(activity.id)
+      .then((list) => { if (!cancelled) setParticipants(list); })
+      .catch((e) => {
+        if (!cancelled)
+          setParticipantsError(
+            e instanceof ApiRequestError ? e.message : "Impossible de charger les participants."
+          );
+      })
+      .finally(() => { if (!cancelled) setParticipantsLoading(false); });
+    return () => { cancelled = true; };
   }, [open, activity]);
 
   if (!open || !activity || !localActivity) return null;
@@ -312,6 +338,55 @@ export function ActivityDetailModal({
               <p className="text-sm text-slate-700 leading-relaxed">{localActivity.description}</p>
             </div>
           )}
+
+          {/* ── Participants ── */}
+          <div>
+            <div className="flex items-center gap-2 mb-2.5">
+              <Users className="h-4 w-4 text-slate-400" />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Participants
+              </span>
+              {!participantsLoading && (
+                <span className="ml-auto inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                  {participants.length}
+                </span>
+              )}
+            </div>
+
+            {participantsLoading ? (
+              <div className="flex items-center justify-center py-5 gap-2 text-slate-400 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Chargement…
+              </div>
+            ) : participantsError ? (
+              <p className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2">
+                {participantsError}
+              </p>
+            ) : participants.length === 0 ? (
+              <p className="text-center text-sm text-slate-400 py-4 bg-slate-50 rounded-xl">
+                Aucun participant inscrit
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100 overflow-hidden">
+                {participants.map((p) => {
+                  const initials = `${p.firstName[0]}${p.lastName[0]}`.toUpperCase();
+                  return (
+                    <li
+                      key={p.id}
+                      className="flex items-center gap-3 px-3.5 py-2.5 bg-white hover:bg-slate-50 transition-colors"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-[11px] font-bold text-white">
+                        {initials}
+                      </span>
+                      <p className="text-sm font-semibold text-slate-800 truncate">
+                        {p.firstName} {p.lastName}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
 
         {/* Footer — organisateur : modifier / supprimer (masqués si passée / déjà commencée) */}

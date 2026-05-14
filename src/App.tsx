@@ -7,6 +7,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
+import { AdminActivitiesPage } from "./pages/admin/AdminActivitiesPage";
 import { AdminActivityTypesPage } from "./pages/admin/AdminActivityTypesPage";
 import { AdminProfilePage } from "./pages/admin/AdminProfilePage";
 import { Navigation } from "./components/layout/Navigation";
@@ -79,12 +80,11 @@ function AppContent() {
               </AdminRoute>
             }
           />
-          {/* Placeholders pour les futures pages admin */}
           <Route
             path="/admin/activities"
             element={
               <AdminRoute>
-                <AdminDashboardPage />
+                <AdminActivitiesPage />
               </AdminRoute>
             }
           />

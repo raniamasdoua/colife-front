@@ -38,6 +38,13 @@ export interface CreateActivityPayload {
   };
 }
 
+export interface ActivityParticipant {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 export interface ActivityResponse {
   id: number;
   title: string;
@@ -55,5 +62,6 @@ export interface ActivityResponse {
   startTime: string;
   endTime: string;
   organizerName: string;
+  deleted?: boolean;
 }
 

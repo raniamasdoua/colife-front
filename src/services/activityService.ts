@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type {
+  ActivityParticipant,
   ActivityResponse,
   ActivityTypeOption,
   CreateActivityPayload,
@@ -35,6 +36,17 @@ export async function deleteActivity(activityId: number): Promise<void> {
   return apiFetch<void>(`/activities/${activityId}`, {
     method: "DELETE",
   });
+}
+
+/** GET /activities/{id}/participants — liste des membres inscrits (admin uniquement) */
+export async function getActivityParticipants(activityId: number): Promise<ActivityParticipant[]> {
+  return apiFetch<ActivityParticipant[]>(`/activities/${activityId}/participants`);
+}
+
+/** GET /activities — liste toutes les activités (admin uniquement). Passer includeDeleted=true pour inclure les supprimées. */
+export async function getAllActivitiesAdmin(includeDeleted = false): Promise<ActivityResponse[]> {
+  const qs = includeDeleted ? "?includeDeleted=true" : "";
+  return apiFetch<ActivityResponse[]>(`/activities${qs}`);
 }
 
 export async function getMyActivities(): Promise<ActivityResponse[]> {
