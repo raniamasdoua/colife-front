@@ -20,3 +20,9 @@ export async function updateProfile(
     body: JSON.stringify(data),
   });
 }
+
+/** GET /user/count — nombre total d'utilisateurs (admin uniquement) */
+export async function countUsers(): Promise<number> {
+  const body = await apiFetch<{ count: number }>("/user/count");
+  return body.count;
+}
