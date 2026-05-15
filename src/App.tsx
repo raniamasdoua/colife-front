@@ -10,6 +10,7 @@ import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { AdminActivitiesPage } from "./pages/admin/AdminActivitiesPage";
 import { AdminActivityTypesPage } from "./pages/admin/AdminActivityTypesPage";
 import { AdminProfilePage } from "./pages/admin/AdminProfilePage";
+import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { Navigation } from "./components/layout/Navigation";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
@@ -100,7 +101,7 @@ function AppContent() {
             path="/admin/users"
             element={
               <AdminRoute>
-                <AdminDashboardPage />
+                <AdminUsersPage />
               </AdminRoute>
             }
           />

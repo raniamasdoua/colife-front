@@ -21,7 +21,8 @@ import {
 import { PasswordStrengthIndicator } from "../components/ui/PasswordStrengthIndicator";
 import { validatePassword } from "../utils/passwordValidation";
 import { getInitials } from "../utils/userDisplay";
-import { getMe, updateProfile } from "../services/userService";
+import { getMe, updateProfile, changePassword } from "../services/userService";
+import { ApiRequestError } from "../services/api";
 import type { UserProfile } from "../types/auth";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
 
@@ -128,6 +129,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     address: "",
   });
   const [saveLoading, setSaveLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
@@ -224,7 +226,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
   };
 
   // ── Change password ─────────────────────────────────────────────────────────
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (
       !passwordData.currentPassword ||
       !passwordData.newPassword ||
@@ -242,9 +244,25 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
       showToast("Les mots de passe ne correspondent pas", "error");
       return;
     }
-    showToast("Mot de passe modifié avec succès", "success");
-    setShowPasswordDialog(false);
-    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    if (!profile) return;
+    setPasswordLoading(true);
+    try {
+      await changePassword(profile.id, {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+      showToast("Mot de passe modifié avec succès", "success");
+      setShowPasswordDialog(false);
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (e) {
+      const msg =
+        e instanceof ApiRequestError
+          ? e.message
+          : "Erreur lors du changement de mot de passe";
+      showToast(msg, "error");
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   // ── Delete account ──────────────────────────────────────────────────────────
@@ -659,6 +677,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
       <Modal
         open={showPasswordDialog}
         onClose={() => {
+          if (passwordLoading) return;
           setShowPasswordDialog(false);
           setPasswordData({
             currentPassword: "",
@@ -800,15 +819,24 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
                 confirmPassword: "",
               });
             }}
-            className="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+            disabled={passwordLoading}
+            className="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Annuler
           </button>
           <button
             onClick={handleChangePassword}
-            className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition"
+            disabled={passwordLoading}
+            className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Modifier
+            {passwordLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Modification…
+              </>
+            ) : (
+              "Modifier"
+            )}
           </button>
         </div>
       </Modal>
