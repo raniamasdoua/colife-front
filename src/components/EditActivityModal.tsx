@@ -110,10 +110,10 @@ export function EditActivityModal({
     setStartTime(toPickerTime(activity.startTime));
     setEndTime(toPickerTime(activity.endTime));
     setCapacity(String(activity.capacity));
-    setStreet(activity.location.street);
+    setStreet(activity.location.street ?? "");
     setComplement(activity.location.complement ?? "");
-    setPostalCode(activity.location.postalCode);
-    setCity(activity.location.city);
+    setPostalCode(activity.location.postalCode ?? "");
+    setCity(activity.location.city ?? "");
     setSubmitError(null);
     setUpdateSuccess(false);
     setUpdatedTitle("");

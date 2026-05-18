@@ -258,7 +258,7 @@ export function ExplorePage() {
         const q = searchQuery.toLowerCase();
         const matchTitle = a.title.toLowerCase().includes(q);
         const matchType = a.activityType.name.toLowerCase().includes(q);
-        const matchCity = a.location.city.toLowerCase().includes(q);
+        const matchCity = (a.location.city ?? "").toLowerCase().includes(q);
         const matchOrganizer = a.organizerName.toLowerCase().includes(q);
         if (!matchTitle && !matchType && !matchCity && !matchOrganizer) return false;
       }

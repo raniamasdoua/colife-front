@@ -5,6 +5,7 @@ import {
   Phone,
   MapPin,
   Calendar,
+  CalendarCheck,
   Edit,
   Save,
   X,
@@ -22,6 +23,8 @@ import { PasswordStrengthIndicator } from "../components/ui/PasswordStrengthIndi
 import { validatePassword } from "../utils/passwordValidation";
 import { getInitials } from "../utils/userDisplay";
 import { getMe, updateProfile, changePassword } from "../services/userService";
+import { getMyActivities, getRegisteredActivities } from "../services/activityService";
+import { isActivityNoLongerEditable } from "../utils/activitySchedule";
 import { ApiRequestError } from "../services/api";
 import type { UserProfile } from "../types/auth";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
@@ -131,6 +134,12 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
   const [saveLoading, setSaveLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
 
+  // Stats
+  const [organizedCount, setOrganizedCount] = useState<number | null>(null);
+  const [joinedCount, setJoinedCount] = useState<number | null>(null);
+  const [upcomingCount, setUpcomingCount] = useState<number | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
     activityReminders: true,
@@ -194,6 +203,33 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // ── Fetch activity stats ────────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    setStatsLoading(true);
+    Promise.all([getMyActivities(), getRegisteredActivities()])
+      .then(([organized, joined]) => {
+        if (cancelled) return;
+        const now = new Date();
+        const upcomingOrganized = organized.filter(
+          (a) => !isActivityNoLongerEditable(a, now)
+        ).length;
+        const upcomingJoined = joined.filter(
+          (a) => !isActivityNoLongerEditable(a, now)
+        ).length;
+        setOrganizedCount(organized.length);
+        setJoinedCount(joined.length);
+        setUpcomingCount(upcomingOrganized + upcomingJoined);
+      })
+      .catch(() => {
+        /* stats non critiques — on laisse null pour afficher "—" */
+      })
+      .finally(() => {
+        if (!cancelled) setStatsLoading(false);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   // ── Save profile ────────────────────────────────────────────────────────────
@@ -314,16 +350,23 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     {
       icon: Activity,
       label: "Activités organisées",
-      value: "—",
+      value: organizedCount,
       color: "text-purple-600",
       bgColor: "bg-purple-100",
     },
     {
       icon: Users,
-      label: "Activités rejointes",
-      value: "—",
+      label: "Participations",
+      value: joinedCount,
       color: "text-blue-600",
       bgColor: "bg-blue-100",
+    },
+    {
+      icon: CalendarCheck,
+      label: "À venir",
+      value: upcomingCount,
+      color: "text-emerald-600",
+      bgColor: "bg-emerald-100",
     },
   ];
 
@@ -445,21 +488,25 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
           <h3 className="text-lg font-bold text-gray-900 mb-4">
             Mes statistiques
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {stats.map((stat, idx) => (
               <div
                 key={idx}
                 className="bg-white p-5 shadow-lg rounded-2xl hover:shadow-xl transition-shadow"
               >
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stat.value}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500 mb-1 truncate">{stat.label}</p>
+                    {statsLoading ? (
+                      <div className="h-8 w-12 rounded-lg bg-gray-100 animate-pulse mt-1" />
+                    ) : (
+                      <p className="text-2xl font-bold text-gray-900">
+                        {stat.value !== null ? stat.value : "—"}
+                      </p>
+                    )}
                   </div>
                   <div
-                    className={`w-14 h-14 ${stat.bgColor} rounded-xl flex items-center justify-center`}
+                    className={`w-14 h-14 ${stat.bgColor} rounded-xl flex items-center justify-center shrink-0 ml-3`}
                   >
                     <stat.icon className={`w-7 h-7 ${stat.color}`} />
                   </div>
