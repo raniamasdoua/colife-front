@@ -6,6 +6,10 @@ export interface ActivityTypeOption {
 
 export type LocationType = "ON_SITE" | "OFF_SITE";
 
+export type CarpoolStatus = "ACTIVE" | "CANCELLED";
+
+export type CarpoolUserRole = "DRIVER" | "PASSENGER" | "NONE";
+
 export interface CarpoolRequest {
   departureTime: string;
   maxPassengers: number;
@@ -17,6 +21,26 @@ export interface CarpoolResponse {
   driverId: number;
   departureTime: string;
   maxPassengers: number;
+}
+
+/** Détail d'un covoiturage retourné par GET /activities/{id}/carpools */
+export interface CarpoolDetail {
+  id: number;
+  activityId: number;
+  driverId: number;
+  driverName: string;
+  departureTime: string;
+  maxPassengers: number;
+  passengerCount: number;
+  availableSeats: number;
+  status: CarpoolStatus;
+}
+
+/** Réponse de GET /activities/{id}/carpools */
+export interface ActivityCarpoolsResponse {
+  carpools: CarpoolDetail[];
+  userRole: CarpoolUserRole;
+  userCarpoolId: number | null;
 }
 
 /** Corps PUT /activities/{id} — aligné sur UpdateActivityRequestDto (backend). */

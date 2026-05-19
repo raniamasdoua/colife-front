@@ -13,6 +13,8 @@ import {
   CalendarCheck,
   CalendarX,
   Trash,
+  Car,
+  Building2,
 } from "lucide-react";
 import { getActivityParticipants } from "../../services/activityService";
 import { ApiRequestError } from "../../services/api";
@@ -235,16 +237,31 @@ export function AdminActivityDetailModal({
             <InfoRow icon={<Clock className="h-4 w-4 text-blue-500" />}>
               {formatTime(activity.startTime)} – {formatTime(activity.endTime)}
             </InfoRow>
-            <InfoRow icon={<MapPin className="h-4 w-4 text-pink-500" />}>
-              <div>
-                <p>{activity.location.street}</p>
-                {activity.location.complement && (
-                  <p className="text-slate-400 text-xs">{activity.location.complement}</p>
-                )}
-                <p>
-                  {activity.location.postalCode} {activity.location.city}
-                </p>
-              </div>
+            <InfoRow
+              icon={
+                activity.locationType === "ON_SITE"
+                  ? <Building2 className="h-4 w-4 text-pink-500" />
+                  : <MapPin className="h-4 w-4 text-pink-500" />
+              }
+            >
+              {activity.locationType === "ON_SITE" ? (
+                <div className="flex items-center gap-2">
+                  <span>{activity.location.room}</span>
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                    Sur site
+                  </span>
+                </div>
+              ) : (
+                <div>
+                  <p>{activity.location.street}</p>
+                  {activity.location.complement && (
+                    <p className="text-slate-400 text-xs">{activity.location.complement}</p>
+                  )}
+                  <p>
+                    {activity.location.postalCode} {activity.location.city}
+                  </p>
+                </div>
+              )}
             </InfoRow>
             <InfoRow icon={<Users className="h-4 w-4 text-emerald-500" />}>
               <span>
@@ -266,6 +283,38 @@ export function AdminActivityDetailModal({
                 </span>
               </div>
               <p className="text-sm text-slate-700 leading-relaxed">{activity.description}</p>
+            </div>
+          )}
+
+          {/* Covoiturage */}
+          {activity.carpool && (
+            <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-3.5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600">
+                  <Car className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">
+                  Covoiturage proposé
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg bg-white/70 px-3 py-2.5 ring-1 ring-violet-100">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-500 mb-0.5">
+                    Départ
+                  </p>
+                  <p className="text-sm font-bold text-slate-800">
+                    {formatTime(activity.carpool.departureTime)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white/70 px-3 py-2.5 ring-1 ring-violet-100">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-500 mb-0.5">
+                    Places passagers
+                  </p>
+                  <p className="text-sm font-bold text-slate-800">
+                    {activity.carpool.maxPassengers}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 

@@ -1,8 +1,11 @@
 import { apiFetch } from "./api";
 import type {
+  ActivityCarpoolsResponse,
   ActivityParticipant,
   ActivityResponse,
   ActivityTypeOption,
+  CarpoolDetail,
+  CarpoolRequest,
   CreateActivityPayload,
   UpdateActivityPayload,
 } from "../types/activity";
@@ -75,6 +78,38 @@ export async function subscribeToActivity(activityId: number): Promise<ActivityR
 /** DELETE /activities/{id}/subscribe — 200 OK, effectif à jour */
 export async function unsubscribeFromActivity(activityId: number): Promise<ActivityResponse> {
   return apiFetch<ActivityResponse>(`/activities/${activityId}/subscribe`, {
+    method: "DELETE",
+  });
+}
+
+/* ── Covoiturage ─────────────────────────────────────────────────────────── */
+
+/** GET /activities/{id}/carpools — liste des covoiturages + rôle utilisateur */
+export async function getActivityCarpools(activityId: number): Promise<ActivityCarpoolsResponse> {
+  return apiFetch<ActivityCarpoolsResponse>(`/activities/${activityId}/carpools`);
+}
+
+/** POST /activities/{id}/carpools — proposer un covoiturage (en tant qu'inscrit) */
+export async function createCarpoolAsSubscriber(
+  activityId: number,
+  payload: CarpoolRequest
+): Promise<CarpoolDetail> {
+  return apiFetch<CarpoolDetail>(`/activities/${activityId}/carpools`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** POST /activities/{id}/carpools/{carpoolId}/join — rejoindre un covoiturage */
+export async function joinCarpool(activityId: number, carpoolId: number): Promise<CarpoolDetail> {
+  return apiFetch<CarpoolDetail>(`/activities/${activityId}/carpools/${carpoolId}/join`, {
+    method: "POST",
+  });
+}
+
+/** DELETE /activities/{id}/carpools/{carpoolId}/leave — quitter un covoiturage */
+export async function leaveCarpool(activityId: number, carpoolId: number): Promise<void> {
+  return apiFetch<void>(`/activities/${activityId}/carpools/${carpoolId}/leave`, {
     method: "DELETE",
   });
 }
