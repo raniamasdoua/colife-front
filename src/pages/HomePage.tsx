@@ -25,11 +25,13 @@ import {
 import { ApiRequestError } from "../services/api";
 import { HomeWelcomeSection } from "../components/home/HomeWelcomeSection";
 import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
+import { PostSubscribeCarpoolModal } from "../components/home/PostSubscribeCarpoolModal";
 import { EditActivityModal } from "../components/EditActivityModal";
 import { MessageModal } from "../components/ui/MessageModal";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
 import type { ActivityResponse } from "../types/activity";
 import { getTypeConfig } from "../utils/activityDisplay";
+import { shouldOfferCarpoolAfterSubscribe, SUBSCRIBE_SUCCESS_MESSAGE } from "../utils/subscribeMessages";
 
 /* ── Utilitaires ────────────────────────────────────────────────────────────── */
 
@@ -127,6 +129,8 @@ export function HomePage() {
   const [subscribeSuccessMessage, setSubscribeSuccessMessage] = useState<string | null>(null);
   const [unsubscribeErrorMessage, setUnsubscribeErrorMessage] = useState<string | null>(null);
   const [unsubscribeSuccessMessage, setUnsubscribeSuccessMessage] = useState<string | null>(null);
+  const [postSubscribeOpen, setPostSubscribeOpen] = useState(false);
+  const [postSubscribeActivity, setPostSubscribeActivity] = useState<ActivityResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,13 +196,7 @@ export function HomePage() {
     setDetailOpen(false);
   }, []);
 
-  const handleSubscribed = useCallback((updated: ActivityResponse) => {
-    setUnsubscribeErrorMessage(null);
-    setUnsubscribeSuccessMessage(null);
-    setSubscribeErrorMessage(null);
-    setSubscribeSuccessMessage(
-      "Votre inscription a bien été enregistrée. Retrouvez l'activité dans votre planning et dans la section « À venir »."
-    );
+  const applySubscribedState = useCallback((updated: ActivityResponse) => {
     setAvailableActivities((prev) => prev.filter((a) => a.id !== updated.id));
     setDetail((prev) => (prev?.id === updated.id ? null : prev));
     setDetailOpen(false);
@@ -215,6 +213,33 @@ export function HomePage() {
     });
   }, []);
 
+  const finishSubscribeFlow = useCallback((updated: ActivityResponse) => {
+    setUnsubscribeErrorMessage(null);
+    setUnsubscribeSuccessMessage(null);
+    setSubscribeErrorMessage(null);
+    applySubscribedState(updated);
+    if (shouldOfferCarpoolAfterSubscribe(updated)) {
+      setPostSubscribeActivity(updated);
+      setPostSubscribeOpen(true);
+    } else {
+      setSubscribeSuccessMessage(SUBSCRIBE_SUCCESS_MESSAGE);
+    }
+  }, [applySubscribedState]);
+
+  const handleSubscribed = useCallback((updated: ActivityResponse) => {
+    setUnsubscribeErrorMessage(null);
+    setUnsubscribeSuccessMessage(null);
+    setSubscribeErrorMessage(null);
+    applySubscribedState(updated);
+    setSubscribeSuccessMessage(SUBSCRIBE_SUCCESS_MESSAGE);
+  }, [applySubscribedState]);
+
+  const handlePostSubscribeComplete = useCallback(() => {
+    setPostSubscribeOpen(false);
+    setPostSubscribeActivity(null);
+    setSubscribeSuccessMessage(SUBSCRIBE_SUCCESS_MESSAGE);
+  }, []);
+
   const handleSubscribeFromCard = async (activity: ActivityResponse) => {
     setSubscribeErrorMessage(null);
     setUnsubscribeErrorMessage(null);
@@ -222,7 +247,7 @@ export function HomePage() {
     setSubscribingId(activity.id);
     try {
       const updated = await subscribeToActivity(activity.id);
-      handleSubscribed(updated);
+      finishSubscribeFlow(updated);
     } catch (e) {
       const message =
         e instanceof ApiRequestError
@@ -708,6 +733,12 @@ export function HomePage() {
         open={editOpen}
         onOpenChange={setEditOpen}
         onSuccess={handleEditSuccess}
+      />
+
+      <PostSubscribeCarpoolModal
+        open={postSubscribeOpen}
+        activity={postSubscribeActivity}
+        onComplete={handlePostSubscribeComplete}
       />
 
       <MessageModal

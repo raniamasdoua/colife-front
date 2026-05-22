@@ -38,7 +38,9 @@ import type {
   CarpoolPassengerSummary,
 } from "../../types/activity";
 import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
+import { shouldOfferCarpoolAfterSubscribe } from "../../utils/subscribeMessages";
 import { MessageModal } from "../ui/MessageModal";
+import { PostSubscribeCarpoolModal } from "./PostSubscribeCarpoolModal";
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -138,6 +140,8 @@ export function ActivityDetailModal({
   const [carpoolEditLoading, setCarpoolEditLoading] = useState(false);
   const [carpoolEditError, setCarpoolEditError] = useState<string | null>(null);
   const [carpoolCancelLoading, setCarpoolCancelLoading] = useState(false);
+  const [postSubscribeOpen, setPostSubscribeOpen] = useState(false);
+  const [postSubscribeActivity, setPostSubscribeActivity] = useState<ActivityResponse | null>(null);
 
   const isOrganizer = mode === "organizer";
   const isUserSubscribed = isSubscribed || isOrganizer;
@@ -224,7 +228,30 @@ export function ActivityDetailModal({
     return () => { cancelled = true; };
   }
 
-  if (!open || !activity || !localActivity) return null;
+  const handlePostSubscribeComplete = () => {
+    const subscribed = postSubscribeActivity;
+    setPostSubscribeOpen(false);
+    setPostSubscribeActivity(null);
+    if (subscribed) onSubscribed?.(subscribed);
+  };
+
+  if (!open || !activity || !localActivity) {
+    return (
+      <>
+        <PostSubscribeCarpoolModal
+          open={postSubscribeOpen}
+          activity={postSubscribeActivity}
+          onComplete={handlePostSubscribeComplete}
+        />
+        <MessageModal
+          open={!!subscribeErrorModalMessage}
+          title="Inscription impossible"
+          message={subscribeErrorModalMessage ?? ""}
+          onClose={() => setSubscribeErrorModalMessage(null)}
+        />
+      </>
+    );
+  }
 
   const canEditOrDelete = !isActivityNoLongerEditable(localActivity);
   const showOrganizerActions = isOrganizer && canEditOrDelete;
@@ -287,9 +314,13 @@ export function ActivityDetailModal({
       const updated = await subscribeToActivity(localActivity.id);
       setLocalActivity(updated);
       setSubscribeDone(true);
-      onSubscribed?.(updated);
-      // Reload carpools to show options now that user is subscribed
-      if (activity.locationType === "OFF_SITE") loadCarpools(updated.id);
+      if (shouldOfferCarpoolAfterSubscribe(updated)) {
+        setPostSubscribeActivity(updated);
+        onOpenChange(false);
+        setPostSubscribeOpen(true);
+      } else {
+        onSubscribed?.(updated);
+      }
     } catch (e) {
       setSubscribeErrorModalMessage(
         e instanceof ApiRequestError ? e.message : "Impossible de s'inscrire. Réessayez."
@@ -1015,6 +1046,11 @@ export function ActivityDetailModal({
         </div>
       </div>
 
+      <PostSubscribeCarpoolModal
+        open={postSubscribeOpen}
+        activity={postSubscribeActivity}
+        onComplete={handlePostSubscribeComplete}
+      />
       <MessageModal
         open={!!subscribeErrorModalMessage}
         title="Inscription impossible"

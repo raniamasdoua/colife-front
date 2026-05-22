@@ -17,12 +17,14 @@ import {
   Flame,
 } from "lucide-react";
 import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
+import { PostSubscribeCarpoolModal } from "../components/home/PostSubscribeCarpoolModal";
 import { MessageModal } from "../components/ui/MessageModal";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
 import { getAvailableActivities, subscribeToActivity } from "../services/activityService";
 import { ApiRequestError } from "../services/api";
 import type { ActivityResponse } from "../types/activity";
 import { getTypeConfig } from "../utils/activityDisplay";
+import { shouldOfferCarpoolAfterSubscribe, SUBSCRIBE_SUCCESS_MESSAGE } from "../utils/subscribeMessages";
 
 /* ── Constantes ─────────────────────────────────────────────────────────────── */
 
@@ -235,6 +237,8 @@ export function ExplorePage() {
   const [subscribingId, setSubscribingId] = useState<number | null>(null);
   const [subscribeErrorMessage, setSubscribeErrorMessage] = useState<string | null>(null);
   const [subscribeSuccessMessage, setSubscribeSuccessMessage] = useState<string | null>(null);
+  const [postSubscribeOpen, setPostSubscribeOpen] = useState(false);
+  const [postSubscribeActivity, setPostSubscribeActivity] = useState<ActivityResponse | null>(null);
 
   /* Chargement */
   useEffect(() => {
@@ -359,17 +363,24 @@ export function ExplorePage() {
     setModalOpen(true);
   }
 
+  function finishSubscribeFlow(updated: ActivityResponse) {
+    setActivities((prev) => prev.filter((a) => a.id !== updated.id));
+    setSelectedActivity((prev) => (prev?.id === updated.id ? null : prev));
+    setModalOpen(false);
+    if (shouldOfferCarpoolAfterSubscribe(updated)) {
+      setPostSubscribeActivity(updated);
+      setPostSubscribeOpen(true);
+    } else {
+      setSubscribeSuccessMessage(SUBSCRIBE_SUCCESS_MESSAGE);
+    }
+  }
+
   const handleSubscribeFromCard = async (activity: ActivityResponse) => {
     setSubscribeErrorMessage(null);
     setSubscribingId(activity.id);
     try {
       const updated = await subscribeToActivity(activity.id);
-      setActivities((prev) => prev.filter((a) => a.id !== updated.id));
-      setSelectedActivity((prev) => (prev?.id === updated.id ? null : prev));
-      setModalOpen(false);
-      setSubscribeSuccessMessage(
-        "Votre inscription a bien été enregistrée. Retrouvez l'activité dans votre planning et dans la section « À venir »."
-      );
+      finishSubscribeFlow(updated);
     } catch (e) {
       const message =
         e instanceof ApiRequestError
@@ -379,6 +390,12 @@ export function ExplorePage() {
     } finally {
       setSubscribingId(null);
     }
+  };
+
+  const handlePostSubscribeComplete = () => {
+    setPostSubscribeOpen(false);
+    setPostSubscribeActivity(null);
+    setSubscribeSuccessMessage(SUBSCRIBE_SUCCESS_MESSAGE);
   };
 
   return (
@@ -681,13 +698,17 @@ export function ExplorePage() {
         mode="available"
         onSubscribed={(updated) => {
           setSubscribeErrorMessage(null);
+          setSubscribeSuccessMessage(SUBSCRIBE_SUCCESS_MESSAGE);
           setActivities((prev) => prev.filter((a) => a.id !== updated.id));
           setSelectedActivity(null);
           setModalOpen(false);
-          setSubscribeSuccessMessage(
-            "Votre inscription a bien été enregistrée. Retrouvez l'activité dans votre planning et dans la section « À venir »."
-          );
         }}
+      />
+
+      <PostSubscribeCarpoolModal
+        open={postSubscribeOpen}
+        activity={postSubscribeActivity}
+        onComplete={handlePostSubscribeComplete}
       />
 
       <MessageModal
