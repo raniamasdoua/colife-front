@@ -114,3 +114,25 @@ export async function leaveCarpool(activityId: number, carpoolId: number): Promi
   });
 }
 
+/** PUT /activities/{id}/carpools/{carpoolId} — conducteur modifie sa proposition */
+export async function updateCarpool(
+  activityId: number,
+  carpoolId: number,
+  payload: CarpoolRequest
+): Promise<CarpoolDetail> {
+  return apiFetch<CarpoolDetail>(`/activities/${activityId}/carpools/${carpoolId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** DELETE /activities/{id}/carpools/{carpoolId} — conducteur annule sa proposition */
+export async function cancelCarpoolByDriver(
+  activityId: number,
+  carpoolId: number
+): Promise<void> {
+  return apiFetch<void>(`/activities/${activityId}/carpools/${carpoolId}`, {
+    method: "DELETE",
+  });
+}
+

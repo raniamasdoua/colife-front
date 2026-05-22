@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   CalendarDays,
+  ChevronDown,
   Clock,
   FileText,
   Loader2,
@@ -16,9 +17,14 @@ import {
   Car,
   Building2,
 } from "lucide-react";
-import { getActivityParticipants } from "../../services/activityService";
+import { getActivityCarpools, getActivityParticipants } from "../../services/activityService";
 import { ApiRequestError } from "../../services/api";
-import type { ActivityParticipant, ActivityResponse } from "../../types/activity";
+import type {
+  ActivityCarpoolsResponse,
+  ActivityParticipant,
+  ActivityResponse,
+  CarpoolPassengerSummary,
+} from "../../types/activity";
 import { getTypeConfig } from "../../utils/activityDisplay";
 import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
 
@@ -53,6 +59,46 @@ function isPast(activity: ActivityResponse): boolean {
 }
 
 /* ── Sous-composants ──────────────────────────────────────────────────────── */
+
+function AdminPassengerList({ passengers }: { passengers: CarpoolPassengerSummary[] }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition"
+      >
+        <span className="flex items-center gap-1.5">
+          <Users className="h-3.5 w-3.5" />
+          Passagers ({passengers.length})
+        </span>
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
+      {expanded && (
+        <div className="mt-1.5">
+          {passengers.length === 0 ? (
+            <p className="px-2.5 py-2 text-xs text-slate-400 italic">Aucun passager.</p>
+          ) : (
+            <ul className="divide-y divide-violet-50 rounded-lg border border-violet-100 overflow-hidden">
+              {passengers.map((p) => {
+                const initials = p.fullName.split(" ").filter(Boolean).map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+                return (
+                  <li key={p.userId} className="flex items-center gap-2.5 bg-white px-3 py-2 hover:bg-violet-50/40 transition-colors">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-purple-600 text-[10px] font-bold text-white">
+                      {initials}
+                    </span>
+                    <span className="text-sm font-medium text-slate-800 truncate">{p.fullName}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function InfoRow({
   icon,
@@ -125,6 +171,9 @@ export function AdminActivityDetailModal({
   const [participantsLoading, setParticipantsLoading] = useState(false);
   const [participantsError, setParticipantsError] = useState<string | null>(null);
 
+  const [carpoolData, setCarpoolData] = useState<ActivityCarpoolsResponse | null>(null);
+  const [carpoolLoading, setCarpoolLoading] = useState(false);
+
   /* Chargement des participants à l'ouverture */
   useEffect(() => {
     if (!open || !activity) return;
@@ -141,6 +190,19 @@ export function AdminActivityDetailModal({
           );
       })
       .finally(() => { if (!cancelled) setParticipantsLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, activity]);
+
+  /* Chargement des covoiturages (activités hors site uniquement) */
+  useEffect(() => {
+    if (!open || !activity || activity.locationType !== "OFF_SITE") return;
+    let cancelled = false;
+    setCarpoolData(null);
+    setCarpoolLoading(true);
+    getActivityCarpools(activity.id)
+      .then((data) => { if (!cancelled) setCarpoolData(data); })
+      .catch(() => { /* silencieux côté admin */ })
+      .finally(() => { if (!cancelled) setCarpoolLoading(false); });
     return () => { cancelled = true; };
   }, [open, activity]);
 
@@ -286,35 +348,53 @@ export function AdminActivityDetailModal({
             </div>
           )}
 
-          {/* Covoiturage */}
-          {activity.carpool && (
-            <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-3.5">
-              <div className="flex items-center gap-2 mb-3">
+          {/* Covoiturage — hors site uniquement */}
+          {activity.locationType === "OFF_SITE" && (
+            <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-3.5 space-y-3">
+              <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600">
                   <Car className="h-3.5 w-3.5 text-white" />
                 </div>
                 <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">
-                  Covoiturage proposé
+                  Covoiturages
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg bg-white/70 px-3 py-2.5 ring-1 ring-violet-100">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-500 mb-0.5">
-                    Départ
-                  </p>
-                  <p className="text-sm font-bold text-slate-800">
-                    {formatTime(activity.carpool.departureTime)}
-                  </p>
+
+              {carpoolLoading && (
+                <div className="flex items-center gap-2 text-xs text-violet-600 py-1">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Chargement…
                 </div>
-                <div className="rounded-lg bg-white/70 px-3 py-2.5 ring-1 ring-violet-100">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-500 mb-0.5">
-                    Places passagers
-                  </p>
-                  <p className="text-sm font-bold text-slate-800">
-                    {activity.carpool.maxPassengers}
-                  </p>
+              )}
+
+              {!carpoolLoading && (!carpoolData || carpoolData.carpools.length === 0) && (
+                <p className="text-xs text-slate-400 italic">Aucune proposition de covoiturage.</p>
+              )}
+
+              {!carpoolLoading && carpoolData && carpoolData.carpools.length > 0 && (
+                <div className="space-y-2">
+                  {carpoolData.carpools.map((c) => (
+                    <div key={c.id} className="rounded-lg bg-white/80 ring-1 ring-violet-100 px-3 py-2.5 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{c.driverName}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Départ {formatTime(c.departureTime)} · {c.passengerCount}/{c.maxPassengers} passagers
+                          </p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          c.availableSeats === 0
+                            ? "bg-red-100 text-red-600"
+                            : "bg-emerald-100 text-emerald-700"
+                        }`}>
+                          {c.availableSeats === 0 ? "Complet" : `${c.availableSeats} dispo`}
+                        </span>
+                      </div>
+                      <AdminPassengerList passengers={c.passengers} />
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
           )}
 

@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
+  Building2,
   Calendar,
   CalendarDays,
+  Car,
   Compass,
   Loader2,
   MapPin,
@@ -240,6 +242,10 @@ export function HomePage() {
 
   const nextActivity = getNextActivity(organizedActivities);
   const upcomingRegistered = getNextActivities(registeredActivities, 2);
+  const openAvailableActivities = useMemo(
+    () => availableActivities.filter((a) => a.participantCount < a.capacity),
+    [availableActivities]
+  );
 
   const categories = [
     { name: "Sport", icon: Trophy, color: "from-blue-500 to-cyan-500" },
@@ -262,7 +268,7 @@ export function HomePage() {
           firstName={firstName}
           organizedCount={organizedActivities.length}
           registeredCount={registeredActivities.length}
-          availableCount={availableActivities.length}
+          availableCount={openAvailableActivities.length}
         />
 
         {/* Catégories */}
@@ -332,6 +338,23 @@ export function HomePage() {
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge}`}>
                         {nextActivity.activityType.name}
                       </span>
+                      {nextActivity.locationType === "ON_SITE" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur-sm px-2.5 py-0.5 text-xs font-semibold text-white">
+                          <Building2 className="h-3 w-3" />
+                          Sur site
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur-sm px-2.5 py-0.5 text-xs font-semibold text-white">
+                          <MapPin className="h-3 w-3" />
+                          Hors site
+                        </span>
+                      )}
+                      {nextActivity.carpool && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur-sm px-2.5 py-0.5 text-xs font-semibold text-white">
+                          <Car className="h-3 w-3" />
+                          Covoiturage
+                        </span>
+                      )}
                     </div>
 
                     {/* Titre */}
@@ -346,10 +369,13 @@ export function HomePage() {
                         <span>{formatDateShort(nextActivity.date)} · {formatTime(nextActivity.startTime)} – {formatTime(nextActivity.endTime)}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 shrink-0" />
+                        {nextActivity.locationType === "ON_SITE"
+                          ? <Building2 className="h-4 w-4 shrink-0" />
+                          : <MapPin className="h-4 w-4 shrink-0" />}
                         <span className="line-clamp-1">
-                          {nextActivity.location.city}
-                          {nextActivity.location.street ? `, ${nextActivity.location.street}` : ""}
+                          {nextActivity.locationType === "ON_SITE"
+                            ? (nextActivity.location.room ?? "Sur site")
+                            : [nextActivity.location.city, nextActivity.location.street].filter(Boolean).join(", ") || "—"}
                         </span>
                       </div>
                     </div>
@@ -447,6 +473,23 @@ export function HomePage() {
                           <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge}`}>
                             {activity.activityType.name}
                           </span>
+                          {activity.locationType === "ON_SITE" ? (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                              <Building2 className="h-2.5 w-2.5" />
+                              Sur site
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-100">
+                              <MapPin className="h-2.5 w-2.5" />
+                              Hors site
+                            </span>
+                          )}
+                          {activity.carpool && (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-100">
+                              <Car className="h-2.5 w-2.5" />
+                              Covoiturage
+                            </span>
+                          )}
                         </div>
                         <h3 className="line-clamp-2 text-base font-bold text-slate-900 leading-snug">
                           {activity.title}
@@ -460,8 +503,14 @@ export function HomePage() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />
-                            <span className="line-clamp-1">{activity.location.city}</span>
+                            {activity.locationType === "ON_SITE"
+                              ? <Building2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                              : <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />}
+                            <span className="line-clamp-1">
+                              {activity.locationType === "ON_SITE"
+                                ? (activity.location.room ?? "Sur site")
+                                : (activity.location.city ?? "—")}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2 pt-0.5">
                             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-[10px] font-bold text-white">
@@ -524,7 +573,7 @@ export function HomePage() {
                   <SkeletonAvailable key={i} />
                 ))}
               </div>
-            ) : availableActivities.length === 0 ? (
+            ) : openAvailableActivities.length === 0 ? (
               <div className="rounded-2xl bg-white p-8 text-center shadow-md ring-1 ring-slate-100">
                 <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-100 to-red-100">
                   <Compass className="h-7 w-7 text-orange-500" />
@@ -534,11 +583,10 @@ export function HomePage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:gap-4">
-                {availableActivities.slice(0, 4).map((activity) => {
+                {openAvailableActivities.slice(0, 4).map((activity) => {
                   const { badge } = getTypeConfig(activity.activityType.name);
                   const fill = Math.min(100, Math.round((activity.participantCount / activity.capacity) * 100));
-                  const isFull = activity.participantCount >= activity.capacity;
-                  const isHot = fill >= 80 && !isFull;
+                  const isHot = fill >= 80;
 
                   return (
                     <div key={activity.id} className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-100 transition hover:shadow-lg hover:-translate-y-0.5">
@@ -548,7 +596,7 @@ export function HomePage() {
                           onClick={() => openDetail(activity, "available")}
                           className="text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 rounded-lg"
                         >
-                          {/* Badge type + Hot */}
+                          {/* Badge type + Hot + lieu + covoiturage */}
                           <div className="mb-2 flex flex-wrap items-center gap-1.5">
                             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge}`}>
                               {activity.activityType.name}
@@ -557,6 +605,23 @@ export function HomePage() {
                               <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-500 px-2 py-0.5 text-xs font-bold text-white">
                                 <Flame className="h-3 w-3" />
                                 Hot
+                              </span>
+                            )}
+                            {activity.locationType === "ON_SITE" ? (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                <Building2 className="h-2.5 w-2.5" />
+                                Sur site
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-100">
+                                <MapPin className="h-2.5 w-2.5" />
+                                Hors site
+                              </span>
+                            )}
+                            {activity.carpool && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-100">
+                                <Car className="h-2.5 w-2.5" />
+                                Covoiturage
                               </span>
                             )}
                           </div>
@@ -573,8 +638,14 @@ export function HomePage() {
                               <span className="line-clamp-1">{formatDateShort(activity.date)}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />
-                              <span className="line-clamp-1">{activity.location.city}</span>
+                              {activity.locationType === "ON_SITE"
+                                ? <Building2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                                : <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />}
+                              <span className="line-clamp-1">
+                                {activity.locationType === "ON_SITE"
+                                  ? (activity.location.room ?? "Sur site")
+                                  : (activity.location.city ?? "—")}
+                              </span>
                             </div>
                             <div className="flex items-center justify-between gap-2 pt-0.5">
                               <div className="flex items-center gap-2 min-w-0">
@@ -583,7 +654,7 @@ export function HomePage() {
                                 </span>
                                 <span className="line-clamp-1 font-medium text-slate-700">{activity.organizerName}</span>
                               </div>
-                              <span className={`shrink-0 text-sm font-semibold tabular-nums ${isFull ? "text-red-600" : isHot ? "text-orange-600" : "text-slate-700"}`}>
+                              <span className={`shrink-0 text-sm font-semibold tabular-nums ${isHot ? "text-orange-600" : "text-slate-700"}`}>
                                 {activity.participantCount}/{activity.capacity}
                               </span>
                             </div>
@@ -592,21 +663,15 @@ export function HomePage() {
 
                         <button
                           type="button"
-                          disabled={isFull || subscribingId === activity.id}
+                          disabled={subscribingId === activity.id}
                           onClick={() => handleSubscribeFromCard(activity)}
-                          className={`mt-auto flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
-                            isFull
-                              ? "cursor-not-allowed bg-slate-300 text-slate-500"
-                              : "bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:brightness-105"
-                          }`}
+                          className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:brightness-105 disabled:opacity-60"
                         >
                           {subscribingId === activity.id ? (
                             <>
                               <Loader2 className="h-4 w-4 animate-spin" />
                               Inscription…
                             </>
-                          ) : isFull ? (
-                            "Complet"
                           ) : (
                             "S'inscrire"
                           )}

@@ -13,18 +13,21 @@ import {
   UserMinus,
   Car,
   Building2,
+  ChevronDown,
   ChevronRight,
   LogOut,
 } from "lucide-react";
 import {
+  cancelCarpoolByDriver,
+  createCarpoolAsSubscriber,
   deleteActivity,
   getActivityCarpools,
   getActivityParticipants,
   joinCarpool,
   leaveCarpool,
-  createCarpoolAsSubscriber,
   subscribeToActivity,
   unsubscribeFromActivity,
+  updateCarpool,
 } from "../../services/activityService";
 import { ApiRequestError } from "../../services/api";
 import type {
@@ -32,6 +35,7 @@ import type {
   ActivityParticipant,
   ActivityResponse,
   CarpoolDetail,
+  CarpoolPassengerSummary,
 } from "../../types/activity";
 import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
 import { MessageModal } from "../ui/MessageModal";
@@ -127,6 +131,13 @@ export function ActivityDetailModal({
   const [showCreateCarpool, setShowCreateCarpool] = useState(false);
   const [cpDepartureTime, setCpDepartureTime] = useState("");
   const [cpMaxPassengers, setCpMaxPassengers] = useState("");
+  /* Edit / cancel own carpool (DRIVER) */
+  const [carpoolEditing, setCarpoolEditing] = useState(false);
+  const [carpoolEditDeparture, setCarpoolEditDeparture] = useState("");
+  const [carpoolEditMax, setCarpoolEditMax] = useState("");
+  const [carpoolEditLoading, setCarpoolEditLoading] = useState(false);
+  const [carpoolEditError, setCarpoolEditError] = useState<string | null>(null);
+  const [carpoolCancelLoading, setCarpoolCancelLoading] = useState(false);
 
   const isOrganizer = mode === "organizer";
   const isUserSubscribed = isSubscribed || isOrganizer;
@@ -150,6 +161,11 @@ export function ActivityDetailModal({
       setShowCreateCarpool(false);
       setCpDepartureTime("");
       setCpMaxPassengers("");
+      setCarpoolEditing(false);
+      setCarpoolEditDeparture("");
+      setCarpoolEditMax("");
+      setCarpoolEditError(null);
+      setCarpoolCancelLoading(false);
     }
   }, [open]);
 
@@ -188,7 +204,18 @@ export function ActivityDetailModal({
     setCarpoolLoading(true);
     setCarpoolError(null);
     getActivityCarpools(activityId)
-      .then((data) => { if (!cancelled) setCarpoolData(data); })
+      .then((data) => {
+        if (cancelled) return;
+        setCarpoolData(data);
+        const myCarpool =
+          data.userRole === "DRIVER"
+            ? data.carpools.find((c) => c.id === data.userCarpoolId)
+            : null;
+        if (myCarpool) {
+          setCarpoolEditDeparture(myCarpool.departureTime.slice(0, 5));
+          setCarpoolEditMax(String(myCarpool.maxPassengers));
+        }
+      })
       .catch((e) => {
         if (!cancelled)
           setCarpoolError(e instanceof ApiRequestError ? e.message : "Impossible de charger les covoiturages.");
@@ -326,6 +353,58 @@ export function ActivityDetailModal({
     }
   };
 
+  const handleUpdateCarpool = async (carpoolId: number, passengerCount: number) => {
+    setCarpoolEditError(null);
+    if (!carpoolEditDeparture) {
+      setCarpoolEditError("L'heure de départ est obligatoire.");
+      return;
+    }
+    const maxP = Number(carpoolEditMax);
+    if (!carpoolEditMax || !Number.isFinite(maxP) || maxP < 1) {
+      setCarpoolEditError("Le nombre de places passagers doit être supérieur ou égal à 1.");
+      return;
+    }
+    if (maxP < passengerCount) {
+      setCarpoolEditError(
+        `Le nombre de places ne peut pas être inférieur au nombre de passagers inscrits (${passengerCount}).`
+      );
+      return;
+    }
+    const depTime = carpoolEditDeparture + ":00";
+    const actStart = localActivity.startTime;
+    if (depTime >= actStart) {
+      setCarpoolEditError("L'heure de départ doit être avant le début de l'activité.");
+      return;
+    }
+    setCarpoolEditLoading(true);
+    try {
+      await updateCarpool(localActivity.id, carpoolId, {
+        departureTime: depTime,
+        maxPassengers: maxP,
+      });
+      setCarpoolEditing(false);
+      loadCarpools(localActivity.id);
+    } catch (e) {
+      setCarpoolEditError(e instanceof ApiRequestError ? e.message : "Impossible de modifier ce covoiturage.");
+    } finally {
+      setCarpoolEditLoading(false);
+    }
+  };
+
+  const handleCancelCarpool = async (carpoolId: number) => {
+    setCarpoolActionError(null);
+    setCarpoolCancelLoading(true);
+    try {
+      await cancelCarpoolByDriver(localActivity.id, carpoolId);
+      setCarpoolEditing(false);
+      loadCarpools(localActivity.id);
+    } catch (e) {
+      setCarpoolActionError(e instanceof ApiRequestError ? e.message : "Impossible d'annuler ce covoiturage.");
+    } finally {
+      setCarpoolCancelLoading(false);
+    }
+  };
+
   /* ── Carpool section rendering ── */
 
   const renderCarpoolSection = () => {
@@ -363,24 +442,129 @@ export function ActivityDetailModal({
           <>
             {/* User is DRIVER */}
             {carpoolData.userRole === "DRIVER" && (
-              <div className="rounded-lg bg-white/80 ring-1 ring-violet-200 px-3 py-2.5 space-y-1">
-                <p className="text-xs font-semibold text-violet-700 mb-1">Votre proposition</p>
+              <div className="rounded-lg bg-white/80 ring-1 ring-violet-200 px-3 py-2.5 space-y-2.5">
+                <p className="text-xs font-semibold text-violet-700">Votre proposition</p>
                 {carpoolData.carpools
                   .filter((c) => c.id === carpoolData.userCarpoolId)
                   .map((c) => (
-                    <div key={c.id} className="grid grid-cols-3 gap-2 text-center">
-                      <div>
-                        <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide">Départ</p>
-                        <p className="text-sm font-bold text-slate-800">{formatTime(c.departureTime)}</p>
+                    <div key={c.id} className="space-y-2">
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div>
+                          <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide">Départ</p>
+                          <p className="text-sm font-bold text-slate-800">{formatTime(c.departureTime)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide">Passagers</p>
+                          <p className="text-sm font-bold text-slate-800">{c.passengerCount} / {c.maxPassengers}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide">Dispo</p>
+                          <p className="text-sm font-bold text-slate-800">{c.availableSeats}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide">Passagers</p>
-                        <p className="text-sm font-bold text-slate-800">{c.passengerCount} / {c.maxPassengers}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide">Dispo</p>
-                        <p className="text-sm font-bold text-slate-800">{c.availableSeats}</p>
-                      </div>
+                      <PassengerList passengers={c.passengers} emptyLabel="Aucun passager pour l'instant." />
+
+                      {!activityIsPast && !carpoolEditing && (
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCarpoolEditing(true);
+                              setCarpoolEditError(null);
+                              setCarpoolEditDeparture(c.departureTime.slice(0, 5));
+                              setCarpoolEditMax(String(c.maxPassengers));
+                            }}
+                            disabled={carpoolCancelLoading || carpoolActionLoading}
+                            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-violet-300 bg-white py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 transition disabled:opacity-50"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            Modifier
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCancelCarpool(c.id)}
+                            disabled={carpoolCancelLoading || carpoolActionLoading}
+                            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition disabled:opacity-50"
+                          >
+                            {carpoolCancelLoading ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                            Annuler
+                          </button>
+                        </div>
+                      )}
+
+                      {!activityIsPast && carpoolEditing && (
+                        <div className="rounded-xl border border-violet-200 bg-white/70 p-3 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className={labelClass}>Heure de départ *</label>
+                              <input
+                                type="time"
+                                className={inputClass}
+                                value={carpoolEditDeparture}
+                                onChange={(e) => setCarpoolEditDeparture(e.target.value)}
+                                disabled={carpoolEditLoading}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelClass}>Places passagers *</label>
+                              <input
+                                type="number"
+                                min={c.passengerCount || 1}
+                                inputMode="numeric"
+                                className={inputClass}
+                                value={carpoolEditMax}
+                                onChange={(e) => setCarpoolEditMax(e.target.value)}
+                                disabled={carpoolEditLoading}
+                              />
+                            </div>
+                          </div>
+                          {c.passengerCount > 0 && (
+                            <p className="text-[11px] text-slate-500">
+                              Minimum {c.passengerCount} place{c.passengerCount > 1 ? "s" : ""} (passagers déjà inscrits).
+                            </p>
+                          )}
+                          <p className="text-[11px] text-slate-500">
+                            L&apos;heure de départ doit être avant le début de l&apos;activité ({formatTime(localActivity.startTime)}).
+                          </p>
+                          {carpoolEditError && (
+                            <p className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2 border border-red-100" role="alert">
+                              {carpoolEditError}
+                            </p>
+                          )}
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCarpoolEditing(false);
+                                setCarpoolEditError(null);
+                                setCarpoolEditDeparture(c.departureTime.slice(0, 5));
+                                setCarpoolEditMax(String(c.maxPassengers));
+                              }}
+                              disabled={carpoolEditLoading}
+                              className="flex-1 rounded-lg border border-gray-200 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Retour
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateCarpool(c.id, c.passengerCount)}
+                              disabled={carpoolEditLoading}
+                              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 py-2 text-xs font-semibold text-white shadow-sm hover:brightness-105 disabled:opacity-60"
+                            >
+                              {carpoolEditLoading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Pencil className="h-3.5 w-3.5" />
+                              )}
+                              Enregistrer
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
               </div>
@@ -392,9 +576,9 @@ export function ActivityDetailModal({
                 {carpoolData.carpools
                   .filter((c) => c.id === carpoolData.userCarpoolId)
                   .map((c) => (
-                    <div key={c.id} className="rounded-lg bg-white/80 ring-1 ring-violet-200 px-3 py-2.5">
-                      <p className="text-xs font-semibold text-violet-700 mb-1.5">Votre covoiturage</p>
-                      <div className="grid grid-cols-2 gap-2 text-center mb-2.5">
+                    <div key={c.id} className="rounded-lg bg-white/80 ring-1 ring-violet-200 px-3 py-2.5 space-y-2.5">
+                      <p className="text-xs font-semibold text-violet-700">Votre covoiturage</p>
+                      <div className="grid grid-cols-2 gap-2 text-center">
                         <div>
                           <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide">Conducteur</p>
                           <p className="text-sm font-bold text-slate-800 truncate">{c.driverName}</p>
@@ -404,6 +588,10 @@ export function ActivityDetailModal({
                           <p className="text-sm font-bold text-slate-800">{formatTime(c.departureTime)}</p>
                         </div>
                       </div>
+                      <PassengerList
+                        passengers={c.passengers}
+                        emptyLabel="Aucun autre passager pour l'instant."
+                      />
                       {!activityIsPast && (
                         <button
                           type="button"
@@ -854,6 +1042,62 @@ function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.Re
   );
 }
 
+function PassengerList({
+  passengers,
+  emptyLabel,
+}: {
+  passengers: CarpoolPassengerSummary[];
+  emptyLabel?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition"
+      >
+        <span className="flex items-center gap-1.5">
+          <Users className="h-3.5 w-3.5" />
+          Passagers ({passengers.length})
+        </span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {expanded && (
+        <div className="mt-1.5">
+          {passengers.length === 0 ? (
+            <p className="px-2.5 py-2 text-xs text-slate-400 italic">{emptyLabel ?? "Aucun passager."}</p>
+          ) : (
+            <ul className="divide-y divide-violet-50 rounded-lg border border-violet-100 overflow-hidden">
+              {passengers.map((p) => {
+                const initials = p.fullName
+                  .split(" ")
+                  .filter(Boolean)
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2);
+                return (
+                  <li key={p.userId} className="flex items-center gap-2.5 bg-white px-3 py-2 hover:bg-violet-50/40 transition-colors">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-purple-600 text-[10px] font-bold text-white">
+                      {initials}
+                    </span>
+                    <span className="text-sm font-medium text-slate-800 truncate">{p.fullName}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CarpoolCard({
   carpool,
   canJoin,
@@ -866,29 +1110,32 @@ function CarpoolCard({
   onJoin: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg bg-white/80 ring-1 ring-violet-100 px-3 py-2.5">
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-slate-800 truncate">{carpool.driverName}</p>
-        <p className="text-xs text-slate-500 mt-0.5">
-          Départ {formatTime(carpool.departureTime)} &nbsp;·&nbsp;{" "}
-          <span className={carpool.availableSeats === 0 ? "text-red-500 font-medium" : "text-emerald-600 font-medium"}>
-            {carpool.availableSeats === 0 ? "Complet" : `${carpool.availableSeats} place${carpool.availableSeats > 1 ? "s" : ""} dispo`}
-          </span>
-        </p>
+    <div className="rounded-lg bg-white/80 ring-1 ring-violet-100 px-3 py-2.5 space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-slate-800 truncate">{carpool.driverName}</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Départ {formatTime(carpool.departureTime)} &nbsp;·&nbsp;{" "}
+            <span className={carpool.availableSeats === 0 ? "text-red-500 font-medium" : "text-emerald-600 font-medium"}>
+              {carpool.availableSeats === 0 ? "Complet" : `${carpool.availableSeats} place${carpool.availableSeats > 1 ? "s" : ""} dispo`}
+            </span>
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={!canJoin || joining}
+          onClick={onJoin}
+          className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+            !canJoin
+              ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+              : "bg-violet-500 text-white hover:bg-violet-600 shadow-sm"
+          } disabled:opacity-60`}
+        >
+          {joining ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Car className="h-3.5 w-3.5" />}
+          Rejoindre
+        </button>
       </div>
-      <button
-        type="button"
-        disabled={!canJoin || joining}
-        onClick={onJoin}
-        className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-          !canJoin
-            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-            : "bg-violet-500 text-white hover:bg-violet-600 shadow-sm"
-        } disabled:opacity-60`}
-      >
-        {joining ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Car className="h-3.5 w-3.5" />}
-        Rejoindre
-      </button>
+      <PassengerList passengers={carpool.passengers} emptyLabel="Aucun passager pour l'instant." />
     </div>
   );
 }

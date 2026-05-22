@@ -23,6 +23,11 @@ export interface CarpoolResponse {
   maxPassengers: number;
 }
 
+export interface CarpoolPassengerSummary {
+  userId: number;
+  fullName: string;
+}
+
 /** Détail d'un covoiturage retourné par GET /activities/{id}/carpools */
 export interface CarpoolDetail {
   id: number;
@@ -34,6 +39,7 @@ export interface CarpoolDetail {
   passengerCount: number;
   availableSeats: number;
   status: CarpoolStatus;
+  passengers: CarpoolPassengerSummary[];
 }
 
 /** Réponse de GET /activities/{id}/carpools */
