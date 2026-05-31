@@ -10,7 +10,7 @@ import {
 import { useLocation } from "react-router-dom";
 import { CreateActivityModal } from "../components/CreateActivityModal";
 
-const AUTH_ROUTES = ["/login", "/register"];
+const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 type CreateActivityModalContextValue = {
   openCreate: () => void;

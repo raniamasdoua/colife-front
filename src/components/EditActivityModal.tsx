@@ -81,6 +81,8 @@ export interface EditActivityModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: (updated: ActivityResponse) => void;
+  /** Mode admin : affichage lecture seule des covoiturages (pas d'actions conducteur) */
+  readOnlyCarpool?: boolean;
 }
 
 /* ── Composant ───────────────────────────────────────────────────────────────── */
@@ -90,6 +92,7 @@ export function EditActivityModal({
   open,
   onOpenChange,
   onSuccess,
+  readOnlyCarpool = false,
 }: EditActivityModalProps) {
   const titleId = useId();
 
@@ -130,6 +133,7 @@ export function EditActivityModal({
   // Annulation (DRIVER → annuler)
   const [carpoolCancelLoading, setCarpoolCancelLoading] = useState(false);
   const [carpoolCancelError, setCarpoolCancelError] = useState<string | null>(null);
+  const [carpoolReadOnlyError, setCarpoolReadOnlyError] = useState<string | null>(null);
 
   /* ── Formulaire principal ─────────────────────────────────────────────── */
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -169,6 +173,7 @@ export function EditActivityModal({
     setCarpoolEditMax("1");
     setCarpoolEditError(null);
     setCarpoolCancelError(null);
+    setCarpoolReadOnlyError(null);
   }, [open, activity]);
 
   /* Chargement des covoiturages (activités hors-site uniquement) */
@@ -181,6 +186,7 @@ export function EditActivityModal({
         const data = await getActivityCarpools(activity.id);
         if (!cancelled) {
           setCarpoolData(data);
+          if (readOnlyCarpool) setCarpoolReadOnlyError(null);
           // Pré-remplir le formulaire d'édition si déjà conducteur
           const myCarpool = data.userRole === "DRIVER"
             ? data.carpools.find((c: CarpoolDetail) => c.id === data.userCarpoolId)
@@ -190,14 +196,18 @@ export function EditActivityModal({
             setCarpoolEditMax(String(myCarpool.maxPassengers));
           }
         }
-      } catch {
-        // Erreur silencieuse — non bloquant pour l'édition de l'activité
+      } catch (e) {
+        if (!cancelled && readOnlyCarpool) {
+          setCarpoolReadOnlyError(
+            e instanceof ApiRequestError ? e.message : "Impossible de charger les covoiturages."
+          );
+        }
       } finally {
         if (!cancelled) setCarpoolLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [open, activity]);
+  }, [open, activity, readOnlyCarpool]);
 
   /* Chargement des types */
   useEffect(() => {
@@ -689,6 +699,51 @@ export function EditActivityModal({
                       </div>
                     )}
 
+                    {readOnlyCarpool ? (
+                      <>
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          Vue administrateur : les covoiturages sont gérés par les collaborateurs inscrits.
+                        </p>
+                        {carpoolReadOnlyError && (
+                          <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{carpoolReadOnlyError}</p>
+                        )}
+                        {!carpoolLoading && !carpoolReadOnlyError && (!carpoolData || carpoolData.carpools.length === 0) && (
+                          <p className="text-xs text-slate-400 italic">Aucune proposition de covoiturage.</p>
+                        )}
+                        {!carpoolLoading && !carpoolReadOnlyError && carpoolData && carpoolData.carpools.length > 0 && (
+                          <div className="space-y-2">
+                            {carpoolData.carpools.map((c: CarpoolDetail) => (
+                              <div key={c.id} className="rounded-xl bg-white/70 p-3 ring-1 ring-violet-100 space-y-1.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-800">{c.driverName}</p>
+                                    <p className="text-xs text-slate-500">
+                                      Départ {c.departureTime.slice(0, 5)} · {c.passengerCount}/{c.maxPassengers} passagers
+                                    </p>
+                                  </div>
+                                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                    c.availableSeats === 0 ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-700"
+                                  }`}>
+                                    {c.availableSeats === 0 ? "Complet" : `${c.availableSeats} dispo`}
+                                  </span>
+                                </div>
+                                {c.passengers.length > 0 && (
+                                  <p className="text-[11px] text-slate-500">
+                                    Passagers : {c.passengers.map((p) => p.fullName).join(", ")}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {willCancelCarpools && (
+                          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            Passer l&apos;activité en « Sur site » annulera les covoiturages existants.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <>
                     {/* ── Conducteur : afficher + modifier / annuler ── */}
                     {!carpoolLoading && carpoolData?.userRole === "DRIVER" && (() => {
                       const myCarpool = carpoolData.carpools.find(
@@ -969,6 +1024,8 @@ export function EditActivityModal({
                           </div>
                         )}
                       </div>
+                    )}
+                      </>
                     )}
                   </section>
                 )}

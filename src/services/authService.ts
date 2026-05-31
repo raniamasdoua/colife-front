@@ -1,4 +1,11 @@
-import type { RegisterRequest, LoginRequest, LoginResponse } from "../types/auth";
+import type {
+  RegisterRequest,
+  LoginRequest,
+  LoginResponse,
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
+  ResetPasswordRequest,
+} from "../types/auth";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -45,4 +52,47 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
   const body: LoginResponse = await response.json();
   localStorage.setItem("accessToken", body.accessToken);
   return body;
+}
+
+export async function forgotPassword(
+  data: ForgotPasswordRequest
+): Promise<ForgotPasswordResponse> {
+  const response = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    if (response.status === 400) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.message ?? "Adresse email invalide.");
+    }
+    throw new Error("Une erreur serveur est survenue. Réessayez plus tard.");
+  }
+
+  return response.json();
+}
+
+export async function resetPassword(data: ResetPasswordRequest): Promise<void> {
+  const response = await fetch(`${API_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    if (response.status === 400) {
+      const body = await response.json().catch(() => null);
+      throw new Error(
+        body?.message ??
+          "Le lien de réinitialisation est invalide ou a expiré, ou le mot de passe ne respecte pas les critères."
+      );
+    }
+    throw new Error("Une erreur serveur est survenue. Réessayez plus tard.");
+  }
 }

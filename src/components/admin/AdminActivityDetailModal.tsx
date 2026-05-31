@@ -27,6 +27,7 @@ import type {
 } from "../../types/activity";
 import { getTypeConfig } from "../../utils/activityDisplay";
 import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
+import { ActivityMetaBadges } from "./ActivityMetaBadges";
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 
@@ -173,6 +174,7 @@ export function AdminActivityDetailModal({
 
   const [carpoolData, setCarpoolData] = useState<ActivityCarpoolsResponse | null>(null);
   const [carpoolLoading, setCarpoolLoading] = useState(false);
+  const [carpoolError, setCarpoolError] = useState<string | null>(null);
 
   /* Chargement des participants à l'ouverture */
   useEffect(() => {
@@ -198,10 +200,17 @@ export function AdminActivityDetailModal({
     if (!open || !activity || activity.locationType !== "OFF_SITE") return;
     let cancelled = false;
     setCarpoolData(null);
+    setCarpoolError(null);
     setCarpoolLoading(true);
     getActivityCarpools(activity.id)
       .then((data) => { if (!cancelled) setCarpoolData(data); })
-      .catch(() => { /* silencieux côté admin */ })
+      .catch((e) => {
+        if (!cancelled) {
+          setCarpoolError(
+            e instanceof ApiRequestError ? e.message : "Impossible de charger les covoiturages."
+          );
+        }
+      })
       .finally(() => { if (!cancelled) setCarpoolLoading(false); });
     return () => { cancelled = true; };
   }, [open, activity]);
@@ -260,6 +269,7 @@ export function AdminActivityDetailModal({
                 >
                   {activity.activityType.name}
                 </span>
+                <ActivityMetaBadges activity={activity} />
                 <StatusBadge activity={activity} />
               </div>
             </div>
@@ -367,12 +377,21 @@ export function AdminActivityDetailModal({
                 </div>
               )}
 
-              {!carpoolLoading && (!carpoolData || carpoolData.carpools.length === 0) && (
+              {carpoolError && (
+                <p className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2 border border-red-100">
+                  {carpoolError}
+                </p>
+              )}
+
+              {!carpoolLoading && !carpoolError && (!carpoolData || carpoolData.carpools.length === 0) && (
                 <p className="text-xs text-slate-400 italic">Aucune proposition de covoiturage.</p>
               )}
 
-              {!carpoolLoading && carpoolData && carpoolData.carpools.length > 0 && (
+              {!carpoolLoading && !carpoolError && carpoolData && carpoolData.carpools.length > 0 && (
                 <div className="space-y-2">
+                  <p className="text-[11px] text-violet-600 font-medium">
+                    {carpoolData.carpools.length} proposition{carpoolData.carpools.length > 1 ? "s" : ""} active{carpoolData.carpools.length > 1 ? "s" : ""}
+                  </p>
                   {carpoolData.carpools.map((c) => (
                     <div key={c.id} className="rounded-lg bg-white/80 ring-1 ring-violet-100 px-3 py-2.5 space-y-2">
                       <div className="flex items-start justify-between gap-2">
@@ -382,13 +401,20 @@ export function AdminActivityDetailModal({
                             Départ {formatTime(c.departureTime)} · {c.passengerCount}/{c.maxPassengers} passagers
                           </p>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                          c.availableSeats === 0
-                            ? "bg-red-100 text-red-600"
-                            : "bg-emerald-100 text-emerald-700"
-                        }`}>
-                          {c.availableSeats === 0 ? "Complet" : `${c.availableSeats} dispo`}
-                        </span>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          {c.status === "CANCELLED" && (
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                              Annulé
+                            </span>
+                          )}
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            c.availableSeats === 0
+                              ? "bg-red-100 text-red-600"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}>
+                            {c.availableSeats === 0 ? "Complet" : `${c.availableSeats} dispo`}
+                          </span>
+                        </div>
                       </div>
                       <AdminPassengerList passengers={c.passengers} />
                     </div>

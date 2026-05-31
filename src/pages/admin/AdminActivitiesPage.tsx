@@ -14,13 +14,17 @@ import {
   Users,
   X,
   Eye,
+  Building2,
+  Car,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import { AdminLayout } from "../../components/admin/AdminLayout";
+import { ActivityMetaBadges } from "../../components/admin/ActivityMetaBadges";
 import { EditActivityModal } from "../../components/EditActivityModal";
 import { MessageModal } from "../../components/ui/MessageModal";
 import { AdminActivityDetailModal } from "../../components/admin/AdminActivityDetailModal";
-import { COLIFE_CARD, COLIFE_SECTION_LABEL } from "../../components/admin/adminTheme";
+import { COLIFE_CARD } from "../../components/admin/adminTheme";
 import { ApiRequestError } from "../../services/api";
 import {
   deleteActivity,
@@ -30,6 +34,10 @@ import { listActivityTypes } from "../../services/activityTypeService";
 import type { ActivityResponse, ActivityTypeOption } from "../../types/activity";
 import { getTypeConfig } from "../../utils/activityDisplay";
 import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
+import {
+  formatActivityLocationMeta,
+  formatActivityLocationShort,
+} from "../../utils/activityLocationDisplay";
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 
@@ -251,6 +259,8 @@ export function AdminActivitiesPage() {
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
   const [showDeleted, setShowDeleted] = useState(false);
+  const [locationFilter, setLocationFilter] = useState<"all" | "on_site" | "off_site">("all");
+  const [carpoolFilter, setCarpoolFilter] = useState(false);
 
   const [detailActivity, setDetailActivity] = useState<ActivityResponse | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -328,8 +338,16 @@ export function AdminActivitiesPage() {
     if (typeFilter) {
       list = list.filter((a) => String(a.activityType.id) === typeFilter);
     }
+    if (locationFilter === "on_site") {
+      list = list.filter((a) => a.locationType === "ON_SITE");
+    } else if (locationFilter === "off_site") {
+      list = list.filter((a) => a.locationType === "OFF_SITE");
+    }
+    if (carpoolFilter) {
+      list = list.filter((a) => !!a.carpool);
+    }
     return list;
-  }, [activities, search, typeFilter, periodFilter, now, showDeleted]);
+  }, [activities, search, typeFilter, periodFilter, locationFilter, carpoolFilter, now, showDeleted]);
 
   /* ── Stats ── */
   const activeActivities = useMemo(() => activities.filter((a) => !a.deleted), [activities]);
@@ -395,10 +413,12 @@ export function AdminActivitiesPage() {
     setSearch("");
     setTypeFilter("");
     setPeriodFilter("all");
+    setLocationFilter("all");
+    setCarpoolFilter(false);
   };
 
   const hasActiveFilters =
-    search.trim() || typeFilter || periodFilter !== "all";
+    search.trim() || typeFilter || periodFilter !== "all" || locationFilter !== "all" || carpoolFilter;
 
   /* ── Rendu ── */
   return (
@@ -483,6 +503,50 @@ export function AdminActivitiesPage() {
                 Effacer
               </button>
             )}
+          </div>
+
+          {/* Sous-filtres : lieu + covoiturage */}
+          <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 mr-1">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-purple-500" />
+              <span className="text-xs font-semibold text-slate-600">Affiner</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLocationFilter((prev) => (prev === "on_site" ? "all" : "on_site"))}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                locationFilter === "on_site"
+                  ? "bg-emerald-500 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
+              }`}
+            >
+              <Building2 className="h-3 w-3" />
+              Sur site
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocationFilter((prev) => (prev === "off_site" ? "all" : "off_site"))}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                locationFilter === "off_site"
+                  ? "bg-blue-500 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700"
+              }`}
+            >
+              <MapPin className="h-3 w-3" />
+              Hors site
+            </button>
+            <button
+              type="button"
+              onClick={() => setCarpoolFilter((v) => !v)}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                carpoolFilter
+                  ? "bg-violet-500 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-600 hover:bg-violet-50 hover:text-violet-700"
+              }`}
+            >
+              <Car className="h-3 w-3" />
+              Covoiturage
+            </button>
           </div>
 
           {/* Toggle activités supprimées */}
@@ -621,6 +685,7 @@ export function AdminActivitiesPage() {
                               >
                                 {activity.activityType.name}
                               </span>
+                              <ActivityMetaBadges activity={activity} />
                             </div>
                           </td>
 
@@ -655,17 +720,25 @@ export function AdminActivitiesPage() {
                           {/* Lieu */}
                           <td className="px-5 py-3.5 max-w-[180px]">
                             <div className="flex items-start gap-1.5">
-                              <MapPin className="h-3.5 w-3.5 text-slate-400 mt-0.5 shrink-0" />
-                              <span
-                                className={`text-xs truncate ${
-                                  isDeleted ? "text-slate-400" : "text-slate-500"
-                                }`}
-                              >
-                                {activity.location.city}
-                                {activity.location.postalCode
-                                  ? ` (${activity.location.postalCode})`
-                                  : ""}
-                              </span>
+                              {activity.locationType === "ON_SITE" ? (
+                                <Building2 className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                              ) : (
+                                <MapPin className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
+                              )}
+                              <div className="min-w-0">
+                                <span
+                                  className={`text-xs block truncate ${
+                                    isDeleted ? "text-slate-400" : "text-slate-600"
+                                  }`}
+                                >
+                                  {formatActivityLocationShort(activity)}
+                                </span>
+                                {formatActivityLocationMeta(activity) && (
+                                  <span className="text-[10px] text-slate-400">
+                                    {formatActivityLocationMeta(activity)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
 
@@ -782,6 +855,7 @@ export function AdminActivitiesPage() {
                               {activity.activityType.name}
                             </span>
                             <StatusBadge activity={activity} />
+                            <ActivityMetaBadges activity={activity} />
                           </div>
                         </div>
                         <div className="flex shrink-0 gap-1">
@@ -818,8 +892,12 @@ export function AdminActivitiesPage() {
                           <span>{formatDate(activity.date)}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{activity.location.city}</span>
+                          {activity.locationType === "ON_SITE" ? (
+                            <Building2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                          ) : (
+                            <MapPin className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                          )}
+                          <span className="truncate">{formatActivityLocationShort(activity)}</span>
                         </div>
                         <div className="col-span-2 flex items-center gap-1.5">
                           <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
@@ -867,6 +945,7 @@ export function AdminActivitiesPage() {
           if (!open) setEditTarget(null);
         }}
         onSuccess={handleEditSuccess}
+        readOnlyCarpool
       />
 
       {/* ── Confirm suppression ── */}

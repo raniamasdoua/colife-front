@@ -6,6 +6,8 @@ import { ExplorePage } from "./pages/ExplorePage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
+import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
+import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { AdminActivitiesPage } from "./pages/admin/AdminActivitiesPage";
 import { AdminActivityTypesPage } from "./pages/admin/AdminActivityTypesPage";
@@ -16,7 +18,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
 import { CreateActivityModalProvider } from "./context/CreateActivityModalContext";
 
-const AUTH_ROUTES = ["/login", "/register"];
+const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 function AppContent() {
   const location = useLocation();
@@ -116,6 +118,8 @@ function AppContent() {
 
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Routes>
       </main>
     </div>
