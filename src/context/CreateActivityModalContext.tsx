@@ -2,15 +2,11 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { useLocation } from "react-router-dom";
 import { CreateActivityModal } from "../components/CreateActivityModal";
-
-const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 type CreateActivityModalContextValue = {
   openCreate: () => void;
@@ -22,14 +18,7 @@ const CreateActivityModalContext = createContext<
 >(undefined);
 
 export function CreateActivityModalProvider({ children }: { children: ReactNode }) {
-  const location = useLocation();
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (AUTH_ROUTES.includes(location.pathname)) {
-      setOpen(false);
-    }
-  }, [location.pathname]);
 
   const openCreate = useCallback(() => {
     setOpen(true);
@@ -43,9 +32,7 @@ export function CreateActivityModalProvider({ children }: { children: ReactNode 
   return (
     <CreateActivityModalContext.Provider value={value}>
       {children}
-      {!AUTH_ROUTES.includes(location.pathname) ? (
-        <CreateActivityModal open={open} onOpenChange={setOpen} />
-      ) : null}
+      <CreateActivityModal open={open} onOpenChange={setOpen} />
     </CreateActivityModalContext.Provider>
   );
 }

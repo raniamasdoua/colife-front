@@ -1,35 +1,7 @@
-export type RegisterRequest = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-};
-
-export type LoginRequest = {
-  email: string;
-  password: string;
-};
-
-export type LoginResponse = {
-  accessToken: string;
-  type: string;
-};
-
-export type ForgotPasswordRequest = {
-  email: string;
-};
-
-export type ForgotPasswordResponse = {
-  message: string;
-  /** Token de réinitialisation (renvoyé en dev tant que l'envoi d'emails n'est pas implémenté). */
-  resetToken: string | null;
-};
-
-export type ResetPasswordRequest = {
-  token: string;
-  newPassword: string;
-};
-
+/**
+ * Profil utilisateur renvoyé par le backend (GET /auth/me, GET /user/{id}).
+ * L'id correspond au sub Keycloak (UUID, sérialisé en chaîne).
+ */
 export type UserProfile = {
   id: string;
   firstName: string;

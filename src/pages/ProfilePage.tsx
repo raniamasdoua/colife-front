@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from "react-oidc-context";
 import {
   Mail,
   Phone,
@@ -119,7 +119,7 @@ type ProfilePageProps = {
 
 // ── ProfilePage ───────────────────────────────────────────────────────────────
 export function ProfilePage({ adminShell = false }: ProfilePageProps) {
-  const navigate = useNavigate();
+  const auth = useAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -314,8 +314,8 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
 
   // ── Logout ──────────────────────────────────────────────────────────────────
   const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    navigate("/login", { replace: true });
+    // Déconnexion Keycloak (révoque la session et nettoie les tokens locaux).
+    void auth.signoutRedirect();
   };
 
   // ── Render states ───────────────────────────────────────────────────────────
@@ -336,7 +336,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
         <div className="text-center p-6">
           <p className="text-red-500 mb-4">{loadError || "Profil introuvable"}</p>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => void auth.signinRedirect()}
             className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition"
           >
             Retour à la connexion
