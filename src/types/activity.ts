@@ -18,13 +18,15 @@ export interface CarpoolRequest {
 export interface CarpoolResponse {
   id: number;
   activityId: number;
-  driverId: number;
+  /** Identité Keycloak du conducteur (UUID sérialisé en chaîne). */
+  driverId: string;
   departureTime: string;
   maxPassengers: number;
 }
 
 export interface CarpoolPassengerSummary {
-  userId: number;
+  /** Identité Keycloak du passager (UUID sérialisé en chaîne). */
+  userId: string;
   fullName: string;
 }
 
@@ -32,7 +34,8 @@ export interface CarpoolPassengerSummary {
 export interface CarpoolDetail {
   id: number;
   activityId: number;
-  driverId: number;
+  /** Identité Keycloak du conducteur (UUID sérialisé en chaîne). */
+  driverId: string;
   driverName: string;
   departureTime: string;
   maxPassengers: number;
@@ -89,7 +92,8 @@ export interface CreateActivityPayload {
 }
 
 export interface ActivityParticipant {
-  id: number;
+  /** Identité Keycloak du participant (UUID sérialisé en chaîne). */
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
