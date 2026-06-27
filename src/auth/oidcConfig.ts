@@ -49,6 +49,18 @@ const registerClient = new OidcClient({
   stateStore,
 });
 
+/**
+ * URL de la console « Mon compte » de Keycloak.
+ *
+ * La gestion du mot de passe (et plus largement de l'identité) est déléguée à
+ * Keycloak depuis la migration OIDC : le backend n'expose plus ce flux. L'écran
+ * profil redirige donc l'utilisateur vers cette console. L'authority est de la
+ * forme `https://host/realms/{realm}` → la console est servie sous `/account`.
+ */
+export function keycloakAccountUrl(): string {
+  return `${String(authority).replace(/\/$/, "")}/account/`;
+}
+
 export async function registerRedirect(): Promise<void> {
   // request_type "si:r" = signin via redirect : indispensable pour que
   // react-oidc-context reconnaisse et traite le state au retour du callback.

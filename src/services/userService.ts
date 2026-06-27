@@ -21,22 +21,6 @@ export async function updateProfile(
   });
 }
 
-export interface ChangePasswordRequest {
-  currentPassword: string;
-  newPassword: string;
-}
-
-/** PATCH /user/{id}/password — changer le mot de passe (utilisateur lui-même uniquement) */
-export async function changePassword(
-  id: string,
-  data: ChangePasswordRequest
-): Promise<void> {
-  await apiFetch<void>(`/user/${id}/password`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
-}
-
 /** GET /user — liste complète des utilisateurs (admin uniquement) */
 export async function getAllUsers(): Promise<UserProfile[]> {
   return apiFetch<UserProfile[]>("/user");

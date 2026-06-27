@@ -13,19 +13,15 @@ import {
   Shield,
   Activity,
   Users,
-  Eye,
-  EyeOff,
   AlertTriangle,
   LogOut,
   User,
 } from "lucide-react";
-import { PasswordStrengthIndicator } from "../components/ui/PasswordStrengthIndicator";
-import { validatePassword } from "../utils/passwordValidation";
 import { getInitials } from "../utils/userDisplay";
-import { getMe, updateProfile, changePassword } from "../services/userService";
+import { getMe, updateProfile } from "../services/userService";
 import { getMyActivities, getRegisteredActivities } from "../services/activityService";
 import { isActivityNoLongerEditable } from "../utils/activitySchedule";
-import { ApiRequestError } from "../services/api";
+import { keycloakAccountUrl } from "../auth/oidcConfig";
 import type { UserProfile } from "../types/auth";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
 
@@ -132,7 +128,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     address: "",
   });
   const [saveLoading, setSaveLoading] = useState(false);
-  const [passwordLoading, setPasswordLoading] = useState(false);
 
   // Stats
   const [organizedCount, setOrganizedCount] = useState<number | null>(null);
@@ -144,19 +139,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     emailNotifications: true,
     activityReminders: true,
     activityUpdates: true,
-  });
-
-  // Password dialog
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false,
   });
 
   // Delete dialog
@@ -262,43 +244,10 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
   };
 
   // ── Change password ─────────────────────────────────────────────────────────
-  const handleChangePassword = async () => {
-    if (
-      !passwordData.currentPassword ||
-      !passwordData.newPassword ||
-      !passwordData.confirmPassword
-    ) {
-      showToast("Veuillez remplir tous les champs", "error");
-      return;
-    }
-    const validation = validatePassword(passwordData.newPassword);
-    if (!validation.isValid) {
-      showToast(validation.errors[0], "error");
-      return;
-    }
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showToast("Les mots de passe ne correspondent pas", "error");
-      return;
-    }
-    if (!profile) return;
-    setPasswordLoading(true);
-    try {
-      await changePassword(profile.id, {
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-      });
-      showToast("Mot de passe modifié avec succès", "success");
-      setShowPasswordDialog(false);
-      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    } catch (e) {
-      const msg =
-        e instanceof ApiRequestError
-          ? e.message
-          : "Erreur lors du changement de mot de passe";
-      showToast(msg, "error");
-    } finally {
-      setPasswordLoading(false);
-    }
+  // La gestion du mot de passe est déléguée à Keycloak (migration OIDC) : on
+  // ouvre la console « Mon compte » dans un nouvel onglet.
+  const handleChangePassword = () => {
+    window.open(keycloakAccountUrl(), "_blank", "noopener,noreferrer");
   };
 
   // ── Delete account ──────────────────────────────────────────────────────────
@@ -686,7 +635,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
               <h3 className="text-lg font-bold text-gray-900 mb-4">Sécurité</h3>
               <div className="bg-white p-5 sm:p-6 shadow-lg rounded-2xl space-y-3">
                 <button
-                  onClick={() => setShowPasswordDialog(true)}
+                  onClick={handleChangePassword}
                   className="w-full flex items-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-purple-50 hover:border-purple-200 transition"
                 >
                   <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -719,174 +668,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
           </div>
         </div>
       </div>
-
-      {/* ── Change password dialog ── */}
-      <Modal
-        open={showPasswordDialog}
-        onClose={() => {
-          if (passwordLoading) return;
-          setShowPasswordDialog(false);
-          setPasswordData({
-            currentPassword: "",
-            newPassword: "",
-            confirmPassword: "",
-          });
-        }}
-      >
-        <h2 className="text-lg font-bold text-gray-900 mb-1">
-          Changer le mot de passe
-        </h2>
-        <p className="text-sm text-gray-500 mb-5">
-          Saisissez votre mot de passe actuel et choisissez un nouveau mot de
-          passe sécurisé.
-        </p>
-
-        <div className="space-y-4">
-          {/* Current password */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Mot de passe actuel
-            </label>
-            <div className="relative">
-              <input
-                type={showPasswords.current ? "text" : "password"}
-                value={passwordData.currentPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    currentPassword: e.target.value,
-                  })
-                }
-                placeholder="Entrez votre mot de passe actuel"
-                className="w-full px-3 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  setShowPasswords({
-                    ...showPasswords,
-                    current: !showPasswords.current,
-                  })
-                }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPasswords.current ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* New password */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Nouveau mot de passe
-            </label>
-            <div className="relative">
-              <input
-                type={showPasswords.new ? "text" : "password"}
-                value={passwordData.newPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    newPassword: e.target.value,
-                  })
-                }
-                placeholder="Créer un mot de passe sécurisé"
-                className="w-full px-3 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  setShowPasswords({ ...showPasswords, new: !showPasswords.new })
-                }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPasswords.new ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-            {passwordData.newPassword && (
-              <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                <PasswordStrengthIndicator password={passwordData.newPassword} />
-              </div>
-            )}
-          </div>
-
-          {/* Confirm password */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Confirmer le nouveau mot de passe
-            </label>
-            <div className="relative">
-              <input
-                type={showPasswords.confirm ? "text" : "password"}
-                value={passwordData.confirmPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    confirmPassword: e.target.value,
-                  })
-                }
-                placeholder="Retapez le nouveau mot de passe"
-                className="w-full px-3 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  setShowPasswords({
-                    ...showPasswords,
-                    confirm: !showPasswords.confirm,
-                  })
-                }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPasswords.confirm ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={() => {
-              setShowPasswordDialog(false);
-              setPasswordData({
-                currentPassword: "",
-                newPassword: "",
-                confirmPassword: "",
-              });
-            }}
-            disabled={passwordLoading}
-            className="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handleChangePassword}
-            disabled={passwordLoading}
-            className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {passwordLoading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Modification…
-              </>
-            ) : (
-              "Modifier"
-            )}
-          </button>
-        </div>
-      </Modal>
 
       {/* ── Logout dialog ── */}
       <Modal
