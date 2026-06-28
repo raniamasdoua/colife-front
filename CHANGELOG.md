@@ -1,3 +1,24 @@
+## v0.2.0 - 2026-04-12
+
+### 🚀 Features
+- feat(activité): inscription/désinscription à une activité (#15) (#16)
+
+---
+
+## v0.1.0 - 2026-04-06
+
+### 🚀 Features
+- feat(activite): suppression d'une activite
+- feat(activite): formulaire de modification d'une activite
+- feat(activite): page planning personnel des activités + page explorer les activités
+- feat(activite): consultation des activités organisées
+- feat(activite): formulaire d'ajout d'une activite
+
+### 🐛 Fixes
+- fix(ci): correction des scripts de generation du changelog et des versions
+
+---
+
 ## v0.0.1 - 2026-03-28
 
 ### 🚀 Features & Fixes
