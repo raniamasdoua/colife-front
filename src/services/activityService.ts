@@ -1,7 +1,11 @@
 import { apiFetch } from "./api";
 import type {
+  ActivityCarpoolsResponse,
+  ActivityParticipant,
   ActivityResponse,
   ActivityTypeOption,
+  CarpoolDetail,
+  CarpoolRequest,
   CreateActivityPayload,
   UpdateActivityPayload,
 } from "../types/activity";
@@ -37,6 +41,17 @@ export async function deleteActivity(activityId: number): Promise<void> {
   });
 }
 
+/** GET /activities/{id}/participants — liste des membres inscrits (admin uniquement) */
+export async function getActivityParticipants(activityId: number): Promise<ActivityParticipant[]> {
+  return apiFetch<ActivityParticipant[]>(`/activities/${activityId}/participants`);
+}
+
+/** GET /activities — liste toutes les activités (admin uniquement). Passer includeDeleted=true pour inclure les supprimées. */
+export async function getAllActivitiesAdmin(includeDeleted = false): Promise<ActivityResponse[]> {
+  const qs = includeDeleted ? "?includeDeleted=true" : "";
+  return apiFetch<ActivityResponse[]>(`/activities${qs}`);
+}
+
 export async function getMyActivities(): Promise<ActivityResponse[]> {
   return apiFetch<ActivityResponse[]>("/activities/mine");
 }
@@ -63,6 +78,60 @@ export async function subscribeToActivity(activityId: number): Promise<ActivityR
 /** DELETE /activities/{id}/subscribe — 200 OK, effectif à jour */
 export async function unsubscribeFromActivity(activityId: number): Promise<ActivityResponse> {
   return apiFetch<ActivityResponse>(`/activities/${activityId}/subscribe`, {
+    method: "DELETE",
+  });
+}
+
+/* ── Covoiturage ─────────────────────────────────────────────────────────── */
+
+/** GET /activities/{id}/carpools — liste des covoiturages + rôle utilisateur */
+export async function getActivityCarpools(activityId: number): Promise<ActivityCarpoolsResponse> {
+  return apiFetch<ActivityCarpoolsResponse>(`/activities/${activityId}/carpools`);
+}
+
+/** POST /activities/{id}/carpools — proposer un covoiturage (en tant qu'inscrit) */
+export async function createCarpoolAsSubscriber(
+  activityId: number,
+  payload: CarpoolRequest
+): Promise<CarpoolDetail> {
+  return apiFetch<CarpoolDetail>(`/activities/${activityId}/carpools`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** POST /activities/{id}/carpools/{carpoolId}/join — rejoindre un covoiturage */
+export async function joinCarpool(activityId: number, carpoolId: number): Promise<CarpoolDetail> {
+  return apiFetch<CarpoolDetail>(`/activities/${activityId}/carpools/${carpoolId}/join`, {
+    method: "POST",
+  });
+}
+
+/** DELETE /activities/{id}/carpools/{carpoolId}/leave — quitter un covoiturage */
+export async function leaveCarpool(activityId: number, carpoolId: number): Promise<void> {
+  return apiFetch<void>(`/activities/${activityId}/carpools/${carpoolId}/leave`, {
+    method: "DELETE",
+  });
+}
+
+/** PUT /activities/{id}/carpools/{carpoolId} — conducteur modifie sa proposition */
+export async function updateCarpool(
+  activityId: number,
+  carpoolId: number,
+  payload: CarpoolRequest
+): Promise<CarpoolDetail> {
+  return apiFetch<CarpoolDetail>(`/activities/${activityId}/carpools/${carpoolId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** DELETE /activities/{id}/carpools/{carpoolId} — conducteur annule sa proposition */
+export async function cancelCarpoolByDriver(
+  activityId: number,
+  carpoolId: number
+): Promise<void> {
+  return apiFetch<void>(`/activities/${activityId}/carpools/${carpoolId}`, {
     method: "DELETE",
   });
 }

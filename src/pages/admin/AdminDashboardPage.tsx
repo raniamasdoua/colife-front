@@ -6,35 +6,45 @@ import { COLIFE_SECTION_LABEL } from "../../components/admin/adminTheme";
 import { StatCard } from "../../components/admin/StatCard";
 import { QuickActions } from "../../components/admin/QuickActions";
 import { UpcomingActivitiesTable } from "../../components/admin/UpcomingActivitiesTable";
+import { AdminActivityDetailModal } from "../../components/admin/AdminActivityDetailModal";
 
-import {
-  getAdminStats,
-  getUpcomingActivitiesAdmin,
-} from "../../services/adminService";
-import type { AdminStats, UpcomingActivityRow } from "../../services/adminService";
+import { loadDashboardData } from "../../services/adminService";
+import type { AdminStats } from "../../services/adminService";
+import type { ActivityResponse } from "../../types/activity";
 
 export function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [upcomingActivities, setUpcomingActivities] = useState<UpcomingActivityRow[]>(
-    []
-  );
+  const [upcomingActivities, setUpcomingActivities] = useState<ActivityResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [detailActivity, setDetailActivity] = useState<ActivityResponse | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
-    Promise.all([getAdminStats(), getUpcomingActivitiesAdmin()])
-      .then(([s, activities]) => {
+    loadDashboardData()
+      .then(({ stats: s, upcomingActivities: upcoming }) => {
         setStats(s);
-        setUpcomingActivities(activities);
+        setUpcomingActivities(upcoming);
       })
-      .catch(console.error)
+      .catch(() => setError("Impossible de charger les données du tableau de bord."))
       .finally(() => setLoading(false));
   }, []);
+
+  function handleRowClick(activity: ActivityResponse) {
+    setDetailActivity(activity);
+    setDetailOpen(true);
+  }
 
   return (
     <AdminLayout>
       {loading ? (
         <div className="flex items-center justify-center py-24">
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-purple-600 border-t-transparent" />
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm text-red-700">
+          {error}
         </div>
       ) : (
         <div className="space-y-8">
@@ -73,9 +83,18 @@ export function AdminDashboardPage() {
 
           <QuickActions />
 
-          <UpcomingActivitiesTable activities={upcomingActivities} />
+          <UpcomingActivitiesTable
+            activities={upcomingActivities}
+            onRowClick={handleRowClick}
+          />
         </div>
       )}
+
+      <AdminActivityDetailModal
+        activity={detailActivity}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+      />
     </AdminLayout>
   );
 }

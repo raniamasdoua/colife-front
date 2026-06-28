@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
+  Building2,
   CalendarDays,
+  Car,
   Clock,
   MapPin,
-  Users,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  SlidersHorizontal,
   Star,
   TrendingUp,
   Sparkles,
   CheckCircle2,
   LayoutList,
+  X as XIcon,
 } from "lucide-react";
 
 type FilterMode = "organized" | "registered" | "all";
@@ -98,6 +102,11 @@ function ActivityCard({
 }) {
   const isPast = isActivityPast(activity, today);
   const { badge } = getTypeConfig(activity.activityType.name);
+  const isOnSite = activity.locationType === "ON_SITE";
+
+  const locationLabel = isOnSite
+    ? (activity.location.room ?? "Sur site")
+    : [activity.location.street, activity.location.city].filter(Boolean).join(", ") || "—";
 
   return (
     <button
@@ -110,7 +119,7 @@ function ActivityCard({
       }`}
     >
       <div className="flex-1 min-w-0 p-3 sm:p-3.5">
-        {/* Titre + badges */}
+        {/* Titre + type */}
         <div className="flex items-start justify-between gap-2 mb-1.5">
           <div className="flex items-center gap-1.5 min-w-0">
             {showOrganizerBadge && (
@@ -139,26 +148,42 @@ function ActivityCard({
             {formatTime(activity.startTime)} – {formatTime(activity.endTime)}
           </span>
           <span className="flex items-center gap-1 min-w-0">
-            <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
-            <span className="line-clamp-1">
-              {activity.location.street}, {activity.location.city}
-            </span>
+            {isOnSite
+              ? <Building2 className="h-3 w-3 shrink-0 text-emerald-500" />
+              : <MapPin className="h-3 w-3 shrink-0 text-slate-400" />}
+            <span className="line-clamp-1">{locationLabel}</span>
           </span>
         </div>
 
-        {/* Bas : capacité + statut */}
-        <div className="flex items-center justify-between mt-2">
-          <span className="flex items-center gap-1 text-[11px] text-slate-500">
-            <Users className="h-3 w-3 shrink-0 text-slate-400" />
-            <span className="font-semibold text-slate-700">{activity.capacity}</span>
-            <span>place{activity.capacity > 1 ? "s" : ""}</span>
-          </span>
+        {/* Bas : badges de contexte + statut */}
+        <div className="flex items-center justify-between gap-2 mt-2">
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            {/* Badge lieu */}
+            {isOnSite ? (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700 ring-1 ring-emerald-100 whitespace-nowrap">
+                <Building2 className="h-2.5 w-2.5" />
+                Sur site
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700 ring-1 ring-blue-100 whitespace-nowrap">
+                <MapPin className="h-2.5 w-2.5" />
+                Hors site
+              </span>
+            )}
+            {/* Badge covoiturage */}
+            {activity.carpool && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-50 px-1.5 py-0.5 text-[9px] font-semibold text-violet-700 ring-1 ring-violet-100 whitespace-nowrap">
+                <Car className="h-2.5 w-2.5" />
+                Covoiturage
+              </span>
+            )}
+          </div>
           {isPast ? (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-400">
+            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-400">
               Passé
             </span>
           ) : (
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 ring-1 ring-emerald-200">
+            <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 ring-1 ring-emerald-200">
               À venir
             </span>
           )}
@@ -182,6 +207,9 @@ export function PlanningPage() {
   });
   const [currentPage, setCurrentPage] = useState(0);
   const [filterMode, setFilterMode] = useState<FilterMode>("organized");
+  const [locationFilter, setLocationFilter] = useState<"all" | "on_site" | "off_site">("all");
+  const [carpoolFilter, setCarpoolFilter] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<Set<string>>(() => new Set());
   const [selectedActivity, setSelectedActivity] = useState<ActivityResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editActivity, setEditActivity] = useState<ActivityResponse | null>(null);
@@ -312,6 +340,23 @@ export function PlanningPage() {
     setCurrentPage(0);
   };
 
+  const toggleLocationFilter = (loc: "on_site" | "off_site") => {
+    setLocationFilter((prev) => (prev === loc ? "all" : loc));
+    setCurrentPage(0);
+  };
+
+  const toggleCarpoolFilter = () => {
+    setCarpoolFilter((v) => !v);
+    setCurrentPage(0);
+  };
+
+  const resetSubFilters = () => {
+    setLocationFilter("all");
+    setCarpoolFilter(false);
+    setTypeFilter(new Set());
+    setCurrentPage(0);
+  };
+
   const openActivity = (a: ActivityResponse) => {
     setSelectedActivity(a);
     setModalOpen(true);
@@ -327,20 +372,42 @@ export function PlanningPage() {
   }).length;
   const upcomingCount = activities.filter((a) => !isActivityPast(a, today)).length;
 
+  /* ── Sous-filtres (lieu + covoiturage + type) ──────────────────────────── */
+
+  /** Types uniques présents dans la vue courante (selon filterMode), triés. */
+  const availableTypes = useMemo(() => {
+    const names = new Set(activities.map((a) => a.activityType.name));
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "fr"));
+  }, [activities]);
+
+  const filteredActivities = useMemo(() => {
+    return activities.filter((a) => {
+      if (locationFilter === "on_site" && a.locationType !== "ON_SITE") return false;
+      if (locationFilter === "off_site" && a.locationType !== "OFF_SITE") return false;
+      if (carpoolFilter && !a.carpool) return false;
+      if (typeFilter.size > 0 && !typeFilter.has(a.activityType.name)) return false;
+      return true;
+    });
+  }, [activities, locationFilter, carpoolFilter, typeFilter]);
+
+  const hasActiveSubFilters = locationFilter !== "all" || carpoolFilter || typeFilter.size > 0;
+
   /* ── Activités affichées ────────────────────────────────────────────────── */
 
-  const upcoming = activities
+  const upcoming = filteredActivities
     .filter((a) => !isActivityPast(a, today))
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
 
-  const past = activities
+  const past = filteredActivities
     .filter((a) => isActivityPast(a, today))
     .sort((a, b) => b.date.localeCompare(a.date) || a.startTime.localeCompare(b.startTime));
 
   /* Sans date sélectionnée : uniquement les activités à venir.
-     Avec date sélectionnée : toutes celles du jour (les passées sont grisées). */
+     Avec date sélectionnée : toutes celles du jour (les passées sont grisées), filtrées. */
   const displayed = selectedDate
-    ? getActivitiesForDate(selectedDate)
+    ? filteredActivities
+        .filter((a) => isSameDay(parseDate(a.date), selectedDate))
+        .sort((a, b) => a.startTime.localeCompare(b.startTime))
     : upcoming;
 
   /* Groupement par date (vue "tout") */
@@ -481,6 +548,113 @@ export function PlanningPage() {
               <span>{label}</span>
             </button>
           ))}
+        </div>
+
+        {/* ── Sous-filtres ──────────────────────────────────────────────────── */}
+        <div className="rounded-2xl bg-white shadow-md ring-1 ring-slate-200/80 overflow-hidden">
+          {/* Barre de couleur + en-tête */}
+          <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" aria-hidden />
+          <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-purple-500" />
+              <span className="text-xs font-bold text-slate-700 tracking-wide">Filtres</span>
+              {hasActiveSubFilters && (
+                <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                  {[locationFilter !== "all", carpoolFilter, typeFilter.size > 0].filter(Boolean).length} actif{[locationFilter !== "all", carpoolFilter, typeFilter.size > 0].filter(Boolean).length > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            {hasActiveSubFilters && (
+              <button
+                type="button"
+                onClick={resetSubFilters}
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 transition"
+              >
+                <XIcon className="h-3 w-3" />
+                Tout effacer
+              </button>
+            )}
+          </div>
+
+          <div className="px-4 pb-3 space-y-3">
+            {/* Ligne 1 : lieu + covoiturage */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Lieu
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => toggleLocationFilter("on_site")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                    locationFilter === "on_site"
+                      ? "bg-emerald-500 text-white shadow-sm shadow-emerald-200"
+                      : "bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
+                  }`}
+                >
+                  <Building2 className="h-3 w-3" />
+                  Sur site
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleLocationFilter("off_site")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                    locationFilter === "off_site"
+                      ? "bg-blue-500 text-white shadow-sm shadow-blue-200"
+                      : "bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700"
+                  }`}
+                >
+                  <MapPin className="h-3 w-3" />
+                  Hors site
+                </button>
+                <div className="h-5 w-px bg-slate-200 mx-1" />
+                <button
+                  type="button"
+                  onClick={toggleCarpoolFilter}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                    carpoolFilter
+                      ? "bg-violet-500 text-white shadow-sm shadow-violet-200"
+                      : "bg-slate-100 text-slate-600 hover:bg-violet-50 hover:text-violet-700"
+                  }`}
+                >
+                  <Car className="h-3 w-3" />
+                  Covoiturage
+                </button>
+              </div>
+            </div>
+
+            {/* Ligne 2 : type d'activité */}
+            {availableTypes.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Type
+                </span>
+                <div className="relative flex-1 min-w-0">
+                  <select
+                    value={typeFilter.size === 1 ? Array.from(typeFilter)[0] : ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTypeFilter(val ? new Set([val]) : new Set());
+                      setCurrentPage(0);
+                    }}
+                    className={`w-full appearance-none rounded-lg border py-1.5 pl-3 pr-8 text-[11px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+                      typeFilter.size > 0
+                        ? "border-purple-300 bg-purple-50 text-purple-800"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white"
+                    }`}
+                  >
+                    <option value="">Tous les types</option>
+                    {availableTypes.map((typeName) => (
+                      <option key={typeName} value={typeName}>
+                        {typeName}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Mise en page deux colonnes ──────────────────────────────────── */}
@@ -649,18 +823,22 @@ export function PlanningPage() {
                   <CalendarDays className="h-8 w-8 text-purple-400" />
                 </div>
                 <p className="font-semibold text-slate-700">
-                  {selectedDate
-                    ? "Aucune activité ce jour"
-                    : filterMode === "registered"
-                      ? "Aucune inscription à venir"
-                      : "Aucune activité à venir"}
+                  {hasActiveSubFilters
+                    ? "Aucune activité ne correspond aux filtres"
+                    : selectedDate
+                      ? "Aucune activité ce jour"
+                      : filterMode === "registered"
+                        ? "Aucune inscription à venir"
+                        : "Aucune activité à venir"}
                 </p>
                 <p className="mt-1 text-sm text-slate-400 max-w-xs mx-auto">
-                  {selectedDate
-                    ? "Ce jour est libre. Sélectionnez un autre jour ou effacez la sélection."
-                    : filterMode === "registered"
-                      ? "Explorez les activités publiées par vos collègues et inscrivez-vous."
-                      : "Vous n'avez pas encore d'activité planifiée."}
+                  {hasActiveSubFilters
+                    ? "Essayez de modifier ou supprimer les filtres actifs."
+                    : selectedDate
+                      ? "Ce jour est libre. Sélectionnez un autre jour ou effacez la sélection."
+                      : filterMode === "registered"
+                        ? "Explorez les activités publiées par vos collègues et inscrivez-vous."
+                        : "Vous n'avez pas encore d'activité planifiée."}
                 </p>
                 {!selectedDate && filterMode === "registered" && (
                   <Link

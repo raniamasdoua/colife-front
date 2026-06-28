@@ -20,3 +20,14 @@ export async function updateProfile(
     body: JSON.stringify(data),
   });
 }
+
+/** GET /user — liste complète des utilisateurs (admin uniquement) */
+export async function getAllUsers(): Promise<UserProfile[]> {
+  return apiFetch<UserProfile[]>("/user");
+}
+
+/** GET /user/count — nombre total d'utilisateurs (admin uniquement) */
+export async function countUsers(): Promise<number> {
+  const body = await apiFetch<{ count: number }>("/user/count");
+  return body.count;
+}

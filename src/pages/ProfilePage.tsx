@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from "react-oidc-context";
 import {
   Mail,
   Phone,
   MapPin,
   Calendar,
+  CalendarCheck,
   Edit,
   Save,
   X,
@@ -12,16 +13,15 @@ import {
   Shield,
   Activity,
   Users,
-  Eye,
-  EyeOff,
   AlertTriangle,
   LogOut,
   User,
 } from "lucide-react";
-import { PasswordStrengthIndicator } from "../components/ui/PasswordStrengthIndicator";
-import { validatePassword } from "../utils/passwordValidation";
 import { getInitials } from "../utils/userDisplay";
 import { getMe, updateProfile } from "../services/userService";
+import { getMyActivities, getRegisteredActivities } from "../services/activityService";
+import { isActivityNoLongerEditable } from "../utils/activitySchedule";
+import { keycloakAccountUrl } from "../auth/oidcConfig";
 import type { UserProfile } from "../types/auth";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
 
@@ -115,7 +115,7 @@ type ProfilePageProps = {
 
 // ── ProfilePage ───────────────────────────────────────────────────────────────
 export function ProfilePage({ adminShell = false }: ProfilePageProps) {
-  const navigate = useNavigate();
+  const auth = useAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -129,23 +129,16 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
   });
   const [saveLoading, setSaveLoading] = useState(false);
 
+  // Stats
+  const [organizedCount, setOrganizedCount] = useState<number | null>(null);
+  const [joinedCount, setJoinedCount] = useState<number | null>(null);
+  const [upcomingCount, setUpcomingCount] = useState<number | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
     activityReminders: true,
     activityUpdates: true,
-  });
-
-  // Password dialog
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false,
   });
 
   // Delete dialog
@@ -194,6 +187,33 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     };
   }, []);
 
+  // ── Fetch activity stats ────────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    setStatsLoading(true);
+    Promise.all([getMyActivities(), getRegisteredActivities()])
+      .then(([organized, joined]) => {
+        if (cancelled) return;
+        const now = new Date();
+        const upcomingOrganized = organized.filter(
+          (a) => !isActivityNoLongerEditable(a, now)
+        ).length;
+        const upcomingJoined = joined.filter(
+          (a) => !isActivityNoLongerEditable(a, now)
+        ).length;
+        setOrganizedCount(organized.length);
+        setJoinedCount(joined.length);
+        setUpcomingCount(upcomingOrganized + upcomingJoined);
+      })
+      .catch(() => {
+        /* stats non critiques — on laisse null pour afficher "—" */
+      })
+      .finally(() => {
+        if (!cancelled) setStatsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   // ── Save profile ────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!profile) return;
@@ -224,27 +244,10 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
   };
 
   // ── Change password ─────────────────────────────────────────────────────────
+  // La gestion du mot de passe est déléguée à Keycloak (migration OIDC) : on
+  // ouvre la console « Mon compte » dans un nouvel onglet.
   const handleChangePassword = () => {
-    if (
-      !passwordData.currentPassword ||
-      !passwordData.newPassword ||
-      !passwordData.confirmPassword
-    ) {
-      showToast("Veuillez remplir tous les champs", "error");
-      return;
-    }
-    const validation = validatePassword(passwordData.newPassword);
-    if (!validation.isValid) {
-      showToast(validation.errors[0], "error");
-      return;
-    }
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showToast("Les mots de passe ne correspondent pas", "error");
-      return;
-    }
-    showToast("Mot de passe modifié avec succès", "success");
-    setShowPasswordDialog(false);
-    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    window.open(keycloakAccountUrl(), "_blank", "noopener,noreferrer");
   };
 
   // ── Delete account ──────────────────────────────────────────────────────────
@@ -260,8 +263,8 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
 
   // ── Logout ──────────────────────────────────────────────────────────────────
   const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    navigate("/login", { replace: true });
+    // Déconnexion Keycloak (révoque la session et nettoie les tokens locaux).
+    void auth.signoutRedirect();
   };
 
   // ── Render states ───────────────────────────────────────────────────────────
@@ -282,7 +285,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
         <div className="text-center p-6">
           <p className="text-red-500 mb-4">{loadError || "Profil introuvable"}</p>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => void auth.signinRedirect()}
             className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition"
           >
             Retour à la connexion
@@ -296,16 +299,23 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     {
       icon: Activity,
       label: "Activités organisées",
-      value: "—",
+      value: organizedCount,
       color: "text-purple-600",
       bgColor: "bg-purple-100",
     },
     {
       icon: Users,
-      label: "Activités rejointes",
-      value: "—",
+      label: "Participations",
+      value: joinedCount,
       color: "text-blue-600",
       bgColor: "bg-blue-100",
+    },
+    {
+      icon: CalendarCheck,
+      label: "À venir",
+      value: upcomingCount,
+      color: "text-emerald-600",
+      bgColor: "bg-emerald-100",
     },
   ];
 
@@ -427,21 +437,25 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
           <h3 className="text-lg font-bold text-gray-900 mb-4">
             Mes statistiques
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {stats.map((stat, idx) => (
               <div
                 key={idx}
                 className="bg-white p-5 shadow-lg rounded-2xl hover:shadow-xl transition-shadow"
               >
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stat.value}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500 mb-1 truncate">{stat.label}</p>
+                    {statsLoading ? (
+                      <div className="h-8 w-12 rounded-lg bg-gray-100 animate-pulse mt-1" />
+                    ) : (
+                      <p className="text-2xl font-bold text-gray-900">
+                        {stat.value !== null ? stat.value : "—"}
+                      </p>
+                    )}
                   </div>
                   <div
-                    className={`w-14 h-14 ${stat.bgColor} rounded-xl flex items-center justify-center`}
+                    className={`w-14 h-14 ${stat.bgColor} rounded-xl flex items-center justify-center shrink-0 ml-3`}
                   >
                     <stat.icon className={`w-7 h-7 ${stat.color}`} />
                   </div>
@@ -621,7 +635,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
               <h3 className="text-lg font-bold text-gray-900 mb-4">Sécurité</h3>
               <div className="bg-white p-5 sm:p-6 shadow-lg rounded-2xl space-y-3">
                 <button
-                  onClick={() => setShowPasswordDialog(true)}
+                  onClick={handleChangePassword}
                   className="w-full flex items-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-purple-50 hover:border-purple-200 transition"
                 >
                   <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -654,164 +668,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
           </div>
         </div>
       </div>
-
-      {/* ── Change password dialog ── */}
-      <Modal
-        open={showPasswordDialog}
-        onClose={() => {
-          setShowPasswordDialog(false);
-          setPasswordData({
-            currentPassword: "",
-            newPassword: "",
-            confirmPassword: "",
-          });
-        }}
-      >
-        <h2 className="text-lg font-bold text-gray-900 mb-1">
-          Changer le mot de passe
-        </h2>
-        <p className="text-sm text-gray-500 mb-5">
-          Saisissez votre mot de passe actuel et choisissez un nouveau mot de
-          passe sécurisé.
-        </p>
-
-        <div className="space-y-4">
-          {/* Current password */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Mot de passe actuel
-            </label>
-            <div className="relative">
-              <input
-                type={showPasswords.current ? "text" : "password"}
-                value={passwordData.currentPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    currentPassword: e.target.value,
-                  })
-                }
-                placeholder="Entrez votre mot de passe actuel"
-                className="w-full px-3 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  setShowPasswords({
-                    ...showPasswords,
-                    current: !showPasswords.current,
-                  })
-                }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPasswords.current ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* New password */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Nouveau mot de passe
-            </label>
-            <div className="relative">
-              <input
-                type={showPasswords.new ? "text" : "password"}
-                value={passwordData.newPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    newPassword: e.target.value,
-                  })
-                }
-                placeholder="Créer un mot de passe sécurisé"
-                className="w-full px-3 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  setShowPasswords({ ...showPasswords, new: !showPasswords.new })
-                }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPasswords.new ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-            {passwordData.newPassword && (
-              <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                <PasswordStrengthIndicator password={passwordData.newPassword} />
-              </div>
-            )}
-          </div>
-
-          {/* Confirm password */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Confirmer le nouveau mot de passe
-            </label>
-            <div className="relative">
-              <input
-                type={showPasswords.confirm ? "text" : "password"}
-                value={passwordData.confirmPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    confirmPassword: e.target.value,
-                  })
-                }
-                placeholder="Retapez le nouveau mot de passe"
-                className="w-full px-3 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  setShowPasswords({
-                    ...showPasswords,
-                    confirm: !showPasswords.confirm,
-                  })
-                }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPasswords.confirm ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={() => {
-              setShowPasswordDialog(false);
-              setPasswordData({
-                currentPassword: "",
-                newPassword: "",
-                confirmPassword: "",
-              });
-            }}
-            className="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handleChangePassword}
-            className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition"
-          >
-            Modifier
-          </button>
-        </div>
-      </Modal>
 
       {/* ── Logout dialog ── */}
       <Modal

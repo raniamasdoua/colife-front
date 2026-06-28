@@ -1,15 +1,28 @@
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Calendar, Clock, User, Users } from "lucide-react";
-import type { UpcomingActivityRow } from "../../services/adminService";
-
+import { Calendar, User, Users } from "lucide-react";
+import type { ActivityResponse } from "../../types/activity";
+import { getTypeConfig } from "../../utils/activityDisplay";
+import {
+  formatActivityLocationMeta,
+  formatActivityLocationShort,
+} from "../../utils/activityLocationDisplay";
+import { ActivityMetaBadges } from "./ActivityMetaBadges";
 import { COLIFE_CARD, COLIFE_SECTION_LABEL } from "./adminTheme";
 
-interface UpcomingActivitiesTableProps {
-  activities: UpcomingActivityRow[];
+function formatTime(hms: string): string {
+  return hms.slice(0, 5);
 }
 
-export function UpcomingActivitiesTable({ activities }: UpcomingActivitiesTableProps) {
+interface UpcomingActivitiesTableProps {
+  activities: ActivityResponse[];
+  onRowClick?: (activity: ActivityResponse) => void;
+}
+
+export function UpcomingActivitiesTable({
+  activities,
+  onRowClick,
+}: UpcomingActivitiesTableProps) {
   return (
     <section>
       <h2 className={`${COLIFE_SECTION_LABEL} mb-3`}>Prochaines activités</h2>
@@ -23,10 +36,10 @@ export function UpcomingActivitiesTable({ activities }: UpcomingActivitiesTableP
                   Activité
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Date
+                  Date / Heure
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Heure
+                  Lieu
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   Organisateur
@@ -39,25 +52,41 @@ export function UpcomingActivitiesTable({ activities }: UpcomingActivitiesTableP
             <tbody className="divide-y divide-slate-50">
               {activities.map((activity) => {
                 const isFull = activity.participantCount >= activity.capacity;
+                const typeConfig = getTypeConfig(activity.activityType.name);
+                const locationMeta = formatActivityLocationMeta(activity);
                 return (
                   <tr
                     key={activity.id}
-                    className="hover:bg-purple-50/30 transition-colors"
+                    onClick={() => onRowClick?.(activity)}
+                    className={`hover:bg-purple-50/40 transition-colors ${
+                      onRowClick ? "cursor-pointer" : ""
+                    }`}
                   >
-                    <td className="px-6 py-4 font-semibold text-slate-800">
-                      {activity.title}
+                    <td className="px-6 py-4">
+                      <p className="font-semibold text-slate-800">{activity.title}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${typeConfig.badge}`}>
+                          {activity.activityType.name}
+                        </span>
+                        <ActivityMetaBadges activity={activity} />
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-500">
-                      <span className="flex items-center gap-1.5">
-                        <Calendar size={13} className="text-purple-300" />
-                        {format(new Date(activity.date), "d MMM yyyy", { locale: fr })}
-                      </span>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 text-slate-700">
+                        <Calendar size={13} className="text-purple-300 shrink-0" />
+                        <span className="font-medium">
+                          {format(new Date(activity.date), "d MMM yyyy", { locale: fr })}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 pl-[19px] text-xs text-slate-400">
+                        {formatTime(activity.startTime)} – {formatTime(activity.endTime)}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-500">
-                      <span className="flex items-center gap-1.5">
-                        <Clock size={13} className="text-purple-300" />
-                        {activity.startTime}
-                      </span>
+                    <td className="px-6 py-4 text-slate-500 max-w-[180px]">
+                      <span className="text-sm truncate block">{formatActivityLocationShort(activity)}</span>
+                      {locationMeta && (
+                        <span className="text-xs text-slate-400">{locationMeta}</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-slate-500">
                       <span className="flex items-center gap-1.5">
@@ -85,29 +114,43 @@ export function UpcomingActivitiesTable({ activities }: UpcomingActivitiesTableP
 
         {/* Mobile list */}
         <ul className="md:hidden divide-y divide-slate-50">
-          {activities.map((activity) => (
-            <li key={activity.id} className="px-4 py-4 space-y-1.5">
-              <p className="font-semibold text-slate-800 text-sm">{activity.title}</p>
-              <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-                <span className="flex items-center gap-1">
-                  <Calendar size={11} className="text-purple-300" />
-                  {format(new Date(activity.date), "d MMM", { locale: fr })}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock size={11} className="text-purple-300" />
-                  {activity.startTime}
-                </span>
-                <span className="flex items-center gap-1">
-                  <User size={11} className="text-purple-300" />
-                  {activity.organizerName}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Users size={11} className="text-purple-300" />
-                  {activity.participantCount}/{activity.capacity}
-                </span>
-              </div>
-            </li>
-          ))}
+          {activities.map((activity) => {
+            const typeConfig = getTypeConfig(activity.activityType.name);
+            return (
+              <li
+                key={activity.id}
+                onClick={() => onRowClick?.(activity)}
+                className={`px-4 py-4 space-y-2 ${
+                  onRowClick ? "cursor-pointer active:bg-purple-50/40" : ""
+                }`}
+              >
+                <p className="font-semibold text-slate-800 text-sm">{activity.title}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${typeConfig.badge}`}>
+                    {activity.activityType.name}
+                  </span>
+                  <ActivityMetaBadges activity={activity} />
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <Calendar size={11} className="text-purple-300" />
+                    {format(new Date(activity.date), "d MMM", { locale: fr })}
+                    {" · "}
+                    {formatTime(activity.startTime)} – {formatTime(activity.endTime)}
+                  </span>
+                  <span>{formatActivityLocationShort(activity)}</span>
+                  <span className="flex items-center gap-1">
+                    <User size={11} className="text-purple-300" />
+                    {activity.organizerName}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Users size={11} className="text-purple-300" />
+                    {activity.participantCount}/{activity.capacity}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </section>

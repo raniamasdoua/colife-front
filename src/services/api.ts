@@ -1,7 +1,10 @@
+import { getAccessToken, requireLogin } from "../auth/oidcConfig";
+
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+/** Token d'accès courant, fourni par la lib OIDC (Keycloak). */
 export function getToken(): string | null {
-  return localStorage.getItem("accessToken");
+  return getAccessToken();
 }
 
 /** Erreur HTTP renvoyée par l’API (corps JSON typique : { message, status, ... }). */
@@ -41,8 +44,8 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     if (response.status === 401) {
-      localStorage.removeItem("accessToken");
-      window.location.href = "/login";
+      // Token invalide/expiré : relancer le flow de connexion Keycloak.
+      requireLogin();
       throw new ApiRequestError("Session expirée ou non authentifié.", 401);
     }
 
