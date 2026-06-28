@@ -1,3 +1,27 @@
+## v0.3.0 - 2026-06-28
+
+### 🚀 Features
+- feat(auth) : authentification OIDC via Keycloak (flow PKCE, page d'accueil)
+- feat(admin) : fonctionnalité de covoiturage
+- feat(covoiturage) : formulaire pour rejoindre un covoiturage lors d'une inscription à une activité
+- feat(covoiturage) : modifier/annuler un covoiturage
+- feat(covoiturage) : proposer/rejoindre un covoiturage lors de l'inscription à une activité
+- feat(covoiturage) : covoiturage lors de la création d'une activité
+- feat(profil) : changement mot de passe utilisateur
+- feat(AccueilPageAdmin) : remplacer les données mochées par les données issues de la base de donnée
+- feat(activités) : page admin gestion des activités
+- feat(back-office): page d'accueil du back-office
+- feat(activité): inscription/désinscription à une activité (#15)
+
+### 🐛 Fixes
+- fix(ci) : aligner la version de package.json sur le dernier tag (0.2.0)
+- fix(covoiturage) : aligner les identités covoit sur l'UUID Keycloak
+
+### 🔧 Others
+- refactor(profil) : déléguer le changement de mot de passe à Keycloak
+
+---
+
 ## v0.2.0 - 2026-04-12
 
 ### 🚀 Features
