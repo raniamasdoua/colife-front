@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { Home, CalendarDays, Compass, User, Bell, PlusCircle } from "lucide-react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Home, CalendarDays, Compass, User, Bell, PlusCircle, Shield } from "lucide-react";
 import { getMe } from "../../services/userService";
 import { getInitials } from "../../utils/userDisplay";
 import { useCreateActivityModal } from "../../context/CreateActivityModalContext";
@@ -16,6 +16,7 @@ export function Navigation() {
   const navigate = useNavigate();
   const { openCreate, isCreateModalOpen } = useCreateActivityModal();
   const [avatarLabel, setAvatarLabel] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +25,7 @@ export function Navigation() {
         const me = await getMe();
         if (!cancelled) {
           setAvatarLabel(getInitials(me.firstName, me.lastName));
+          setIsAdmin(me.role === "ADMIN");
         }
       } catch {
         if (!cancelled) setAvatarLabel("?");
@@ -49,6 +51,16 @@ export function Navigation() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link
+                to="/admin/dashboard"
+                title="Retour à l'espace admin"
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold text-white bg-white/20 ring-1 ring-white/40 hover:bg-white/30 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+              >
+                <Shield className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">Espace admin</span>
+              </Link>
+            )}
             <button
               type="button"
               title="Créer une activité"

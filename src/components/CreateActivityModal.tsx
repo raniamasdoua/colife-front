@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import {
   Calendar,
+  Car,
   CheckCircle2,
   FileText,
   MapPin,
@@ -10,7 +11,7 @@ import {
 } from "lucide-react";
 import { createActivity, getActivityTypes } from "../services/activityService";
 import { ApiRequestError } from "../services/api";
-import type { ActivityTypeOption } from "../types/activity";
+import type { ActivityTypeOption, LocationType } from "../types/activity";
 import { ActivityDatePicker } from "./activity/ActivityDatePicker";
 import { ActivityTimeSelect } from "./activity/ActivityTimeSelect";
 import { ActivityTypeSelect } from "./activity/ActivityTypeSelect";
@@ -27,6 +28,7 @@ const MAX_DESCRIPTION = 5000;
 const MAX_STREET = 255;
 const MAX_COMPLEMENT = 255;
 const MAX_CITY = 120;
+const MAX_ROOM = 255;
 
 function todayIso(): string {
   const d = new Date();
@@ -57,10 +59,15 @@ function emptyForm() {
     startTime: "",
     endTime: "",
     capacity: "",
+    locationType: "OFF_SITE" as LocationType,
+    room: "",
     street: "",
     complement: "",
     postalCode: "",
     city: "",
+    carpoolEnabled: false,
+    carpoolDepartureTime: "",
+    carpoolMaxPassengers: "",
   };
 }
 
@@ -82,10 +89,17 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [capacity, setCapacity] = useState("");
+
+  const [locationType, setLocationType] = useState<LocationType>("OFF_SITE");
+  const [room, setRoom] = useState("");
   const [street, setStreet] = useState("");
   const [complement, setComplement] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [city, setCity] = useState("");
+
+  const [carpoolEnabled, setCarpoolEnabled] = useState(false);
+  const [carpoolDepartureTime, setCarpoolDepartureTime] = useState("");
+  const [carpoolMaxPassengers, setCarpoolMaxPassengers] = useState("");
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -96,18 +110,23 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
 
   useEffect(() => {
     if (!open) return;
-    const initial = emptyForm();
-    setTitle(initial.title);
-    setActivityTypeId(initial.activityTypeId);
-    setDescription(initial.description);
-    setDate(initial.date);
-    setStartTime(initial.startTime);
-    setEndTime(initial.endTime);
-    setCapacity(initial.capacity);
-    setStreet(initial.street);
-    setComplement(initial.complement);
-    setPostalCode(initial.postalCode);
-    setCity(initial.city);
+    const f = emptyForm();
+    setTitle(f.title);
+    setActivityTypeId(f.activityTypeId);
+    setDescription(f.description);
+    setDate(f.date);
+    setStartTime(f.startTime);
+    setEndTime(f.endTime);
+    setCapacity(f.capacity);
+    setLocationType(f.locationType);
+    setRoom(f.room);
+    setStreet(f.street);
+    setComplement(f.complement);
+    setPostalCode(f.postalCode);
+    setCity(f.city);
+    setCarpoolEnabled(f.carpoolEnabled);
+    setCarpoolDepartureTime(f.carpoolDepartureTime);
+    setCarpoolMaxPassengers(f.carpoolMaxPassengers);
     setSubmitError(null);
     setCreateSuccess(false);
     setCreatedActivityTitle("");
@@ -130,7 +149,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
           setTypesError(
             e instanceof ApiRequestError
               ? e.message
-              : "Impossible de charger les types d’activité."
+              : "Impossible de charger les types d'activité."
           );
         }
       } finally {
@@ -166,26 +185,47 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
     return () => window.clearTimeout(t);
   }, [createSuccess, onOpenChange]);
 
+  /* When switching to ON_SITE, disable carpool */
+  useEffect(() => {
+    if (locationType === "ON_SITE") {
+      setCarpoolEnabled(false);
+    }
+  }, [locationType]);
+
   const validateClient = (): string | null => {
     if (!title.trim()) return "Le titre est obligatoire.";
-    if (!activityTypeId) return "Le type d’activité est obligatoire.";
+    if (!activityTypeId) return "Le type d'activité est obligatoire.";
     if (!date) return "La date est obligatoire.";
     if (!startTime || !endTime) return "Les heures de début et de fin sont obligatoires.";
     if (!capacity.trim()) return "La capacité est obligatoire.";
     const cap = Number(capacity);
     if (!Number.isFinite(cap) || cap < 1) return "La capacité doit être un nombre positif.";
-    if (!street.trim()) return "L’adresse (rue) est obligatoire.";
-    if (!postalCode.trim()) return "Le code postal est obligatoire.";
-    if (!/^\d{5}$/.test(postalCode.trim())) {
-      return "Le code postal doit contenir 5 chiffres.";
+
+    if (locationType === "ON_SITE") {
+      if (!room.trim()) return "La salle est obligatoire pour une activité sur site.";
+    } else {
+      if (!street.trim()) return "L'adresse (rue) est obligatoire.";
+      if (!postalCode.trim()) return "Le code postal est obligatoire.";
+      if (!/^\d{5}$/.test(postalCode.trim())) {
+        return "Le code postal doit contenir 5 chiffres.";
+      }
+      if (!city.trim()) return "La ville est obligatoire.";
     }
-    if (!city.trim()) return "La ville est obligatoire.";
 
     const start = toBackendTime(startTime);
     const end = toBackendTime(endTime);
-    if (start >= end) return "L’heure de fin doit être après l’heure de début.";
+    if (start >= end) return "L'heure de fin doit être après l'heure de début.";
 
     if (date < minDate) return "La date ne peut pas être dans le passé.";
+
+    if (carpoolEnabled) {
+      if (!carpoolDepartureTime) return "L'heure de départ du covoiturage est obligatoire.";
+      const maxP = Number(carpoolMaxPassengers);
+      if (!carpoolMaxPassengers.trim() || !Number.isFinite(maxP) || maxP < 1) {
+        return "Le nombre de places passagers doit être supérieur ou égal à 1.";
+      }
+    }
+
     return null;
   };
 
@@ -200,6 +240,17 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
 
     const cap = Number(capacity);
     const desc = description.trim();
+
+    const locationPayload =
+      locationType === "ON_SITE"
+        ? { room: room.trim() }
+        : {
+            street: street.trim(),
+            complement: complement.trim() || null,
+            postalCode: postalCode.trim(),
+            city: city.trim(),
+          };
+
     const payload = {
       title: title.trim(),
       description: desc.length > 0 ? desc : null,
@@ -208,12 +259,14 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
       startTime: toBackendTime(startTime),
       endTime: toBackendTime(endTime),
       capacity: cap,
-      location: {
-        street: street.trim(),
-        complement: complement.trim() || null,
-        postalCode: postalCode.trim(),
-        city: city.trim(),
-      },
+      locationType,
+      location: locationPayload,
+      carpool: carpoolEnabled
+        ? {
+            departureTime: toBackendTime(carpoolDepartureTime),
+            maxPassengers: Number(carpoolMaxPassengers),
+          }
+        : null,
     };
 
     try {
@@ -225,7 +278,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
       setSubmitError(
         err instanceof ApiRequestError
           ? err.message
-          : "Impossible de créer l’activité. Réessayez."
+          : "Impossible de créer l'activité. Réessayez."
       );
     } finally {
       setSubmitting(false);
@@ -264,7 +317,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
                 id={titleId}
                 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent sm:text-2xl"
               >
-                {createSuccess ? "C’est enregistré !" : "Créer une activité"}
+                {createSuccess ? "C'est enregistré !" : "Créer une activité"}
               </h2>
               <p className="mt-1 text-sm text-gray-600">
                 {createSuccess
@@ -306,274 +359,416 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
 
           {!createSuccess ? (
             <>
-          {typesError ? (
-            <div
-              className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-              role="alert"
-            >
-              {typesError}
-            </div>
-          ) : null}
-
-          {!loadingTypes && !typesError && types.length === 0 ? (
-            <div
-              className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-              role="status"
-            >
-              Aucun type d&apos;activité n&apos;est disponible. Ajoutez des types côté serveur (base de
-              données) pour pouvoir créer une activité.
-            </div>
-          ) : null}
-
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            <section className="space-y-4 rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4 shadow-lg sm:p-5">
-              <div className="mb-1 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
-                  <FileText className="h-4 w-4 text-white" aria-hidden />
+              {typesError ? (
+                <div
+                  className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                  role="alert"
+                >
+                  {typesError}
                 </div>
-                <h3 className="font-bold text-gray-900">Informations de base</h3>
-              </div>
+              ) : null}
 
-              <div>
-                <label htmlFor="act-title" className={labelClass}>
-                  Titre de l&apos;activité *
-                </label>
-                <input
-                  id="act-title"
-                  type="text"
-                  required
-                  maxLength={MAX_TITLE}
-                  autoComplete="off"
-                  className={inputClass}
-                  placeholder="Ex : Session piscine du vendredi"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  disabled={submitting}
-                />
-              </div>
+              {!loadingTypes && !typesError && types.length === 0 ? (
+                <div
+                  className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                  role="status"
+                >
+                  Aucun type d&apos;activité n&apos;est disponible. Ajoutez des types côté serveur (base de
+                  données) pour pouvoir créer une activité.
+                </div>
+              ) : null}
 
-              <div>
-                <label htmlFor="act-type" className={labelClass}>
-                  Type d&apos;activité *
-                </label>
-                <ActivityTypeSelect
-                  id="act-type"
-                  types={types}
-                  value={activityTypeId}
-                  onChange={setActivityTypeId}
-                  disabled={submitting}
-                  loading={loadingTypes}
-                />
-              </div>
+              <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                {/* Informations de base */}
+                <section className="space-y-4 rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4 shadow-lg sm:p-5">
+                  <div className="mb-1 flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
+                      <FileText className="h-4 w-4 text-white" aria-hidden />
+                    </div>
+                    <h3 className="font-bold text-gray-900">Informations de base</h3>
+                  </div>
 
-              <div>
-                <label htmlFor="act-desc" className={labelClass}>
-                  Description
-                </label>
-                <textarea
-                  id="act-desc"
-                  rows={4}
-                  maxLength={MAX_DESCRIPTION}
-                  className={`${inputClass} resize-none`}
-                  placeholder="Décrivez votre activité, le niveau requis, ce qu’il faut apporter…"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={submitting}
-                />
-              </div>
-            </section>
+                  <div>
+                    <label htmlFor="act-title" className={labelClass}>
+                      Titre de l&apos;activité *
+                    </label>
+                    <input
+                      id="act-title"
+                      type="text"
+                      required
+                      maxLength={MAX_TITLE}
+                      autoComplete="off"
+                      className={inputClass}
+                      placeholder="Ex : Session piscine du vendredi"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      disabled={submitting}
+                    />
+                  </div>
 
-            <section className="space-y-4 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 sm:p-6">
-              <div className="mb-2 flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-blue-600" aria-hidden />
-                <h3 className="font-bold text-gray-900">Date et horaires</h3>
-              </div>
+                  <div>
+                    <label htmlFor="act-type" className={labelClass}>
+                      Type d&apos;activité *
+                    </label>
+                    <ActivityTypeSelect
+                      id="act-type"
+                      types={types}
+                      value={activityTypeId}
+                      onChange={setActivityTypeId}
+                      disabled={submitting}
+                      loading={loadingTypes}
+                    />
+                  </div>
 
-              {/* Date — pleine largeur */}
-              <div>
-                <label htmlFor="act-date" className={labelClass}>
-                  Date *
-                </label>
-                <ActivityDatePicker
-                  id="act-date"
-                  value={date}
-                  onChange={setDate}
-                  disabled={submitting}
-                />
-              </div>
+                  <div>
+                    <label htmlFor="act-desc" className={labelClass}>
+                      Description
+                    </label>
+                    <textarea
+                      id="act-desc"
+                      rows={4}
+                      maxLength={MAX_DESCRIPTION}
+                      className={`${inputClass} resize-none`}
+                      placeholder="Décrivez votre activité, le niveau requis, ce qu'il faut apporter…"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      disabled={submitting}
+                    />
+                  </div>
+                </section>
 
-              {/* Heure début et fin côte à côte */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="act-start-h" className={labelClass}>
-                    Heure de début *
-                  </label>
-                  <ActivityTimeSelect
-                    idPrefix="act-start"
-                    value={startTime}
-                    onChange={setStartTime}
+                {/* Date et horaires */}
+                <section className="space-y-4 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 sm:p-6">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-blue-600" aria-hidden />
+                    <h3 className="font-bold text-gray-900">Date et horaires</h3>
+                  </div>
+
+                  <div>
+                    <label htmlFor="act-date" className={labelClass}>
+                      Date *
+                    </label>
+                    <ActivityDatePicker
+                      id="act-date"
+                      value={date}
+                      onChange={setDate}
+                      disabled={submitting}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="act-start-h" className={labelClass}>
+                        Heure de début *
+                      </label>
+                      <ActivityTimeSelect
+                        idPrefix="act-start"
+                        value={startTime}
+                        onChange={setStartTime}
+                        disabled={submitting}
+                        variant="start"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="act-end-h" className={labelClass}>
+                        Heure de fin *
+                      </label>
+                      <ActivityTimeSelect
+                        idPrefix="act-end"
+                        value={endTime}
+                        onChange={setEndTime}
+                        disabled={submitting}
+                        variant="end"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Capacité */}
+                <section className="space-y-4 rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-4 sm:p-5">
+                  <div className="mb-1 flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-amber-500">
+                      <Users className="h-4 w-4 text-white" aria-hidden />
+                    </div>
+                    <h3 className="font-bold text-gray-900">Capacité</h3>
+                  </div>
+                  <div>
+                    <label htmlFor="act-cap" className={labelClass}>
+                      Nombre de places *
+                    </label>
+                    <div className="relative">
+                      <Users
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400"
+                        aria-hidden
+                      />
+                      <input
+                        id="act-cap"
+                        type="number"
+                        required
+                        min={1}
+                        inputMode="numeric"
+                        className={`${inputClass} pl-9`}
+                        placeholder="Ex : 10"
+                        value={capacity}
+                        onChange={(e) => setCapacity(e.target.value)}
+                        disabled={submitting}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Lieu */}
+                <section className="space-y-4 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-100/40 p-4 sm:p-6">
+                  <div className="mb-2 flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-emerald-600" aria-hidden />
+                    <h3 className="font-bold text-gray-900">Lieu</h3>
+                  </div>
+
+                  {/* Toggle sur site / hors site */}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setLocationType("OFF_SITE")}
+                      disabled={submitting}
+                      className={`flex-1 rounded-xl border py-2 text-sm font-semibold transition ${
+                        locationType === "OFF_SITE"
+                          ? "border-emerald-500 bg-emerald-500 text-white shadow-sm"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                      } disabled:opacity-50`}
+                    >
+                      Hors site
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLocationType("ON_SITE")}
+                      disabled={submitting}
+                      className={`flex-1 rounded-xl border py-2 text-sm font-semibold transition ${
+                        locationType === "ON_SITE"
+                          ? "border-emerald-500 bg-emerald-500 text-white shadow-sm"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                      } disabled:opacity-50`}
+                    >
+                      Sur site
+                    </button>
+                  </div>
+
+                  {locationType === "ON_SITE" ? (
+                    <div>
+                      <label htmlFor="act-room" className={labelClass}>
+                        Salle *
+                      </label>
+                      <input
+                        id="act-room"
+                        type="text"
+                        required
+                        maxLength={MAX_ROOM}
+                        autoComplete="off"
+                        className={inputClass}
+                        placeholder="Ex : Salle A12, Gymnase Nord…"
+                        value={room}
+                        onChange={(e) => setRoom(e.target.value)}
+                        disabled={submitting}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label htmlFor="act-street" className={labelClass}>
+                          Adresse (rue, n°) *
+                        </label>
+                        <input
+                          id="act-street"
+                          type="text"
+                          required
+                          maxLength={MAX_STREET}
+                          autoComplete="street-address"
+                          className={inputClass}
+                          value={street}
+                          onChange={(e) => setStreet(e.target.value)}
+                          disabled={submitting}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="act-complement" className={labelClass}>
+                          Complément (bâtiment, étage…)
+                        </label>
+                        <input
+                          id="act-complement"
+                          type="text"
+                          maxLength={MAX_COMPLEMENT}
+                          className={inputClass}
+                          value={complement}
+                          onChange={(e) => setComplement(e.target.value)}
+                          disabled={submitting}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <label htmlFor="act-postal" className={labelClass}>
+                            Code postal *
+                          </label>
+                          <input
+                            id="act-postal"
+                            type="text"
+                            required
+                            inputMode="numeric"
+                            maxLength={5}
+                            autoComplete="postal-code"
+                            className={inputClass}
+                            value={postalCode}
+                            onChange={(e) =>
+                              setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5))
+                            }
+                            disabled={submitting}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="act-city" className={labelClass}>
+                            Ville *
+                          </label>
+                          <input
+                            id="act-city"
+                            type="text"
+                            required
+                            maxLength={MAX_CITY}
+                            autoComplete="address-level2"
+                            className={inputClass}
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            disabled={submitting}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </section>
+
+                {/* Covoiturage — uniquement pour les activités hors site */}
+                {locationType === "OFF_SITE" ? (
+                  <section className="space-y-4 rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-4 sm:p-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600">
+                          <Car className="h-4 w-4 text-white" aria-hidden />
+                        </div>
+                        <h3 className="font-bold text-gray-900">Covoiturage</h3>
+                        <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
+                          Facultatif
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={carpoolEnabled}
+                        onClick={() => setCarpoolEnabled((v) => !v)}
+                        disabled={submitting}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50 ${
+                          carpoolEnabled ? "bg-violet-500" : "bg-gray-200"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                            carpoolEnabled ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {carpoolEnabled ? (
+                      <div className="space-y-4">
+                        <p className="text-xs text-violet-700">
+                          Vous proposez un trajet depuis votre point de départ. Les collègues
+                          pourront rejoindre votre covoiturage.
+                        </p>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <div>
+                            <label htmlFor="carpool-departure" className={labelClass}>
+                              Heure de départ *
+                            </label>
+                            <input
+                              id="carpool-departure"
+                              type="time"
+                              required
+                              className={inputClass}
+                              value={carpoolDepartureTime}
+                              onChange={(e) => setCarpoolDepartureTime(e.target.value)}
+                              disabled={submitting}
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor="carpool-seats" className={labelClass}>
+                              Places passagers disponibles *
+                            </label>
+                            <div className="relative">
+                              <Users
+                                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-violet-400"
+                                aria-hidden
+                              />
+                              <input
+                                id="carpool-seats"
+                                type="number"
+                                required
+                                min={1}
+                                inputMode="numeric"
+                                className={`${inputClass} pl-9`}
+                                placeholder="Ex : 3"
+                                value={carpoolMaxPassengers}
+                                onChange={(e) => setCarpoolMaxPassengers(e.target.value)}
+                                disabled={submitting}
+                              />
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">
+                              Hors conducteur (vous).
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        Activez cette option si vous souhaitez proposer un covoiturage pour
+                        rejoindre le lieu de l&apos;activité.
+                      </p>
+                    )}
+                  </section>
+                ) : null}
+
+                {submitError ? (
+                  <div
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                    role="alert"
+                  >
+                    {submitError}
+                  </div>
+                ) : null}
+
+                <div className="flex flex-col gap-3 border-t border-gray-200 pt-4 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => !submitting && onOpenChange(false)}
                     disabled={submitting}
-                    variant="start"
-                  />
+                    className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting || loadingTypes || types.length === 0}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {submitting ? (
+                      <>
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Création…
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Créer l&apos;activité
+                      </>
+                    )}
+                  </button>
                 </div>
-                <div>
-                  <label htmlFor="act-end-h" className={labelClass}>
-                    Heure de fin *
-                  </label>
-                  <ActivityTimeSelect
-                    idPrefix="act-end"
-                    value={endTime}
-                    onChange={setEndTime}
-                    disabled={submitting}
-                    variant="end"
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* Capacité */}
-            <section className="space-y-4 rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-4 sm:p-5">
-              <div className="mb-1 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-amber-500">
-                  <Users className="h-4 w-4 text-white" aria-hidden />
-                </div>
-                <h3 className="font-bold text-gray-900">Capacité</h3>
-              </div>
-              <div>
-                <label htmlFor="act-cap" className={labelClass}>
-                  Nombre de places *
-                </label>
-                <div className="relative">
-                  <Users
-                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400"
-                    aria-hidden
-                  />
-                  <input
-                    id="act-cap"
-                    type="number"
-                    required
-                    min={1}
-                    inputMode="numeric"
-                    className={`${inputClass} pl-9`}
-                    placeholder="Ex : 10"
-                    value={capacity}
-                    onChange={(e) => setCapacity(e.target.value)}
-                    disabled={submitting}
-                  />
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-4 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-100/40 p-4 sm:p-6">
-              <div className="mb-2 flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-emerald-600" aria-hidden />
-                <h3 className="font-bold text-gray-900">Lieu</h3>
-              </div>
-
-              <div>
-                <label htmlFor="act-street" className={labelClass}>
-                  Adresse (rue, n°) *
-                </label>
-                <input
-                  id="act-street"
-                  type="text"
-                  required
-                  maxLength={MAX_STREET}
-                  autoComplete="street-address"
-                  className={inputClass}
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
-                  disabled={submitting}
-                />
-              </div>
-              <div>
-                <label htmlFor="act-complement" className={labelClass}>
-                  Complément (bâtiment, salle…)
-                </label>
-                <input
-                  id="act-complement"
-                  type="text"
-                  maxLength={MAX_COMPLEMENT}
-                  className={inputClass}
-                  value={complement}
-                  onChange={(e) => setComplement(e.target.value)}
-                  disabled={submitting}
-                />
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="act-postal" className={labelClass}>
-                    Code postal *
-                  </label>
-                  <input
-                    id="act-postal"
-                    type="text"
-                    required
-                    inputMode="numeric"
-                    maxLength={5}
-                    autoComplete="postal-code"
-                    className={inputClass}
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5))}
-                    disabled={submitting}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="act-city" className={labelClass}>
-                    Ville *
-                  </label>
-                  <input
-                    id="act-city"
-                    type="text"
-                    required
-                    maxLength={MAX_CITY}
-                    autoComplete="address-level2"
-                    className={inputClass}
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    disabled={submitting}
-                  />
-                </div>
-              </div>
-            </section>
-
-            {submitError ? (
-              <div
-                className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-                role="alert"
-              >
-                {submitError}
-              </div>
-            ) : null}
-
-            <div className="flex flex-col gap-3 border-t border-gray-200 pt-4 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => !submitting && onOpenChange(false)}
-                disabled={submitting}
-                className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-              >
-                Annuler
-              </button>
-              <button
-                type="submit"
-                disabled={submitting || loadingTypes || types.length === 0}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? (
-                  <>
-                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Création…
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" />
-                    Créer l&apos;activité
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+              </form>
             </>
           ) : null}
         </div>

@@ -11,14 +11,20 @@ import {
   ChevronRight,
   Compass,
   Loader2,
+  Building2,
+  Car,
+  SlidersHorizontal,
+  Flame,
 } from "lucide-react";
 import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
+import { PostSubscribeCarpoolModal } from "../components/home/PostSubscribeCarpoolModal";
 import { MessageModal } from "../components/ui/MessageModal";
 import { PAGE_CONTAINER_CLASS } from "../layout/page";
 import { getAvailableActivities, subscribeToActivity } from "../services/activityService";
 import { ApiRequestError } from "../services/api";
 import type { ActivityResponse } from "../types/activity";
 import { getTypeConfig } from "../utils/activityDisplay";
+import { shouldOfferCarpoolAfterSubscribe, SUBSCRIBE_SUCCESS_MESSAGE } from "../utils/subscribeMessages";
 
 /* ── Constantes ─────────────────────────────────────────────────────────────── */
 
@@ -96,8 +102,7 @@ function ActivityCard({
 }) {
   const { badge } = getTypeConfig(activity.activityType.name);
   const fill = Math.min(100, Math.round((activity.participantCount / activity.capacity) * 100));
-  const isFull = activity.participantCount >= activity.capacity;
-  const isHot = fill >= 80 && !isFull;
+  const isHot = fill >= 80;
 
   return (
     <div
@@ -115,12 +120,25 @@ function ActivityCard({
           </span>
           {isHot && (
             <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white">
-              🔥 Hot
+              <Flame className="h-3 w-3" />
+              Hot
             </span>
           )}
-          {isFull && (
-            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">
-              Complet
+          {activity.locationType === "ON_SITE" ? (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
+              <Building2 className="h-2.5 w-2.5" />
+              Sur site
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-100">
+              <MapPin className="h-2.5 w-2.5" />
+              Hors site
+            </span>
+          )}
+          {activity.carpool && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-100">
+              <Car className="h-2.5 w-2.5" />
+              Covoiturage
             </span>
           )}
         </div>
@@ -141,16 +159,21 @@ function ActivityCard({
             <span>{formatTime(activity.startTime)} – {formatTime(activity.endTime)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+            {activity.locationType === "ON_SITE" ? (
+              <Building2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+            ) : (
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+            )}
             <span className="line-clamp-1">
-              {activity.location.city}
-              {activity.location.street ? `, ${activity.location.street}` : ""}
+              {activity.locationType === "ON_SITE"
+                ? (activity.location.room ?? "Sur site")
+                : [activity.location.city, activity.location.street].filter(Boolean).join(", ") || "—"}
             </span>
           </div>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Users className="h-3.5 w-3.5 shrink-0 text-purple-400" />
-              <span className={isFull ? "font-semibold text-red-600" : isHot ? "font-semibold text-orange-600" : ""}>
+              <span className={isHot ? "font-semibold text-orange-600" : ""}>
                 {activity.participantCount}/{activity.capacity} place{activity.capacity > 1 ? "s" : ""}
               </span>
             </div>
@@ -167,24 +190,18 @@ function ActivityCard({
 
         <button
           type="button"
-          disabled={isFull || isSubscribing}
+          disabled={isSubscribing}
           onClick={(e) => {
             e.stopPropagation();
             onSubscribe(e);
           }}
-          className={`w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold shadow-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
-            isFull
-              ? "cursor-not-allowed bg-slate-300 text-slate-500 shadow-none"
-              : "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-purple-200/50 hover:brightness-105"
-          }`}
+          className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold shadow-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-purple-200/50 hover:brightness-105 disabled:opacity-60"
         >
           {isSubscribing ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Inscription…
             </>
-          ) : isFull ? (
-            "Complet"
           ) : (
             "S'inscrire"
           )}
@@ -210,6 +227,8 @@ export function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("all");
+  const [locationFilter, setLocationFilter] = useState<"all" | "on_site" | "off_site">("all");
+  const [carpoolFilter, setCarpoolFilter] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedActivity, setSelectedActivity] = useState<ActivityResponse | null>(null);
@@ -218,6 +237,8 @@ export function ExplorePage() {
   const [subscribingId, setSubscribingId] = useState<number | null>(null);
   const [subscribeErrorMessage, setSubscribeErrorMessage] = useState<string | null>(null);
   const [subscribeSuccessMessage, setSubscribeSuccessMessage] = useState<string | null>(null);
+  const [postSubscribeOpen, setPostSubscribeOpen] = useState(false);
+  const [postSubscribeActivity, setPostSubscribeActivity] = useState<ActivityResponse | null>(null);
 
   /* Chargement */
   useEffect(() => {
@@ -242,10 +263,16 @@ export function ExplorePage() {
     };
   }, []);
 
-  /* Types uniques pour le filtre */
-  const uniqueTypes = useMemo(
-    () => [...new Set(activities.map((a) => a.activityType.name))].sort(),
+  /* Activités avec places restantes (les complètes ne sont pas affichées) */
+  const openActivities = useMemo(
+    () => activities.filter((a) => a.participantCount < a.capacity),
     [activities]
+  );
+
+  /* Types uniques pour le filtre (basés sur les activités ouvertes) */
+  const uniqueTypes = useMemo(
+    () => [...new Set(openActivities.map((a) => a.activityType.name))].sort((a, b) => a.localeCompare(b, "fr")),
+    [openActivities]
   );
 
   /* Filtrage */
@@ -253,17 +280,23 @@ export function ExplorePage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return activities.filter((a) => {
+    return openActivities.filter((a) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const matchTitle = a.title.toLowerCase().includes(q);
         const matchType = a.activityType.name.toLowerCase().includes(q);
-        const matchCity = a.location.city.toLowerCase().includes(q);
+        const matchCity = (a.location.city ?? "").toLowerCase().includes(q);
+        const matchRoom = (a.location.room ?? "").toLowerCase().includes(q);
         const matchOrganizer = a.organizerName.toLowerCase().includes(q);
-        if (!matchTitle && !matchType && !matchCity && !matchOrganizer) return false;
+        if (!matchTitle && !matchType && !matchCity && !matchRoom && !matchOrganizer) return false;
       }
 
       if (selectedType !== "all" && a.activityType.name !== selectedType) return false;
+
+      if (locationFilter === "on_site" && a.locationType !== "ON_SITE") return false;
+      if (locationFilter === "off_site" && a.locationType !== "OFF_SITE") return false;
+
+      if (carpoolFilter && !a.carpool) return false;
 
       if (selectedPeriod !== "all") {
         const d = parseDate(a.date);
@@ -276,7 +309,7 @@ export function ExplorePage() {
 
       return true;
     });
-  }, [activities, searchQuery, selectedType, selectedPeriod]);
+  }, [openActivities, searchQuery, selectedType, selectedPeriod, locationFilter, carpoolFilter]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
@@ -285,7 +318,15 @@ export function ExplorePage() {
     searchQuery ? 1 : 0,
     selectedType !== "all" ? 1 : 0,
     selectedPeriod !== "all" ? 1 : 0,
+    locationFilter !== "all" ? 1 : 0,
+    carpoolFilter ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
+
+  const hasActiveSubFilters =
+    selectedType !== "all" ||
+    selectedPeriod !== "all" ||
+    locationFilter !== "all" ||
+    carpoolFilter;
 
   function changeFilter(updates: Partial<{ search: string; type: string; period: Period }>) {
     if (updates.search !== undefined) setSearchQuery(updates.search);
@@ -294,11 +335,27 @@ export function ExplorePage() {
     setCurrentPage(0);
   }
 
-  function clearFilters() {
-    setSearchQuery("");
+  function toggleLocationFilter(loc: "on_site" | "off_site") {
+    setLocationFilter((prev) => (prev === loc ? "all" : loc));
+    setCurrentPage(0);
+  }
+
+  function toggleCarpoolFilter() {
+    setCarpoolFilter((v) => !v);
+    setCurrentPage(0);
+  }
+
+  function resetSubFilters() {
     setSelectedType("all");
     setSelectedPeriod("all");
+    setLocationFilter("all");
+    setCarpoolFilter(false);
     setCurrentPage(0);
+  }
+
+  function clearFilters() {
+    setSearchQuery("");
+    resetSubFilters();
   }
 
   function openModal(activity: ActivityResponse) {
@@ -306,17 +363,24 @@ export function ExplorePage() {
     setModalOpen(true);
   }
 
+  function finishSubscribeFlow(updated: ActivityResponse) {
+    setActivities((prev) => prev.filter((a) => a.id !== updated.id));
+    setSelectedActivity((prev) => (prev?.id === updated.id ? null : prev));
+    setModalOpen(false);
+    if (shouldOfferCarpoolAfterSubscribe(updated)) {
+      setPostSubscribeActivity(updated);
+      setPostSubscribeOpen(true);
+    } else {
+      setSubscribeSuccessMessage(SUBSCRIBE_SUCCESS_MESSAGE);
+    }
+  }
+
   const handleSubscribeFromCard = async (activity: ActivityResponse) => {
     setSubscribeErrorMessage(null);
     setSubscribingId(activity.id);
     try {
       const updated = await subscribeToActivity(activity.id);
-      setActivities((prev) => prev.filter((a) => a.id !== updated.id));
-      setSelectedActivity((prev) => (prev?.id === updated.id ? null : prev));
-      setModalOpen(false);
-      setSubscribeSuccessMessage(
-        "Votre inscription a bien été enregistrée. Retrouvez l'activité dans votre planning et dans la section « À venir »."
-      );
+      finishSubscribeFlow(updated);
     } catch (e) {
       const message =
         e instanceof ApiRequestError
@@ -326,6 +390,12 @@ export function ExplorePage() {
     } finally {
       setSubscribingId(null);
     }
+  };
+
+  const handlePostSubscribeComplete = () => {
+    setPostSubscribeOpen(false);
+    setPostSubscribeActivity(null);
+    setSubscribeSuccessMessage(SUBSCRIBE_SUCCESS_MESSAGE);
   };
 
   return (
@@ -355,7 +425,7 @@ export function ExplorePage() {
                       ? "Chargement…"
                       : error
                       ? "Impossible de charger les activités"
-                      : `${activities.length} activité${activities.length > 1 ? "s" : ""} disponible${activities.length > 1 ? "s" : ""}`}
+                      : `${openActivities.length} activité${openActivities.length > 1 ? "s" : ""} disponible${openActivities.length > 1 ? "s" : ""}`}
                   </p>
                 </div>
               </div>
@@ -409,53 +479,115 @@ export function ExplorePage() {
 
             {/* Panneau de filtres */}
             {showFilters && (
-              <div className="space-y-3 pt-1">
-                {/* Filtre par type */}
-                <div>
-                  <p className="mb-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Type d'activité
-                  </p>
-                  <div className="flex flex-wrap gap-2">
+              <div className="space-y-3 pt-1 border-t border-slate-100">
+                <div className="flex items-center justify-between gap-3 pt-2">
+                  <div className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-3.5 w-3.5 text-purple-500" />
+                    <span className="text-xs font-bold text-slate-700 tracking-wide">Affiner la recherche</span>
+                    {hasActiveSubFilters && (
+                      <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                        {[selectedType !== "all", selectedPeriod !== "all", locationFilter !== "all", carpoolFilter].filter(Boolean).length} actif{[selectedType !== "all", selectedPeriod !== "all", locationFilter !== "all", carpoolFilter].filter(Boolean).length > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                  {hasActiveSubFilters && (
                     <button
                       type="button"
-                      onClick={() => changeFilter({ type: "all" })}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold transition focus:outline-none ${
-                        selectedType === "all"
-                          ? "bg-purple-600 text-white shadow-sm"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      onClick={resetSubFilters}
+                      className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 transition"
+                    >
+                      <X className="h-3 w-3" />
+                      Tout effacer
+                    </button>
+                  )}
+                </div>
+
+                {/* Lieu + covoiturage */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Lieu
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => toggleLocationFilter("on_site")}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+                        locationFilter === "on_site"
+                          ? "bg-emerald-500 text-white shadow-sm shadow-emerald-200"
+                          : "bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
                       }`}
                     >
-                      Tous
+                      <Building2 className="h-3 w-3" />
+                      Sur site
                     </button>
-                    {uniqueTypes.map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => changeFilter({ type })}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold transition focus:outline-none ${
-                          selectedType === type
-                            ? "bg-purple-600 text-white shadow-sm"
-                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
+                    <button
+                      type="button"
+                      onClick={() => toggleLocationFilter("off_site")}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+                        locationFilter === "off_site"
+                          ? "bg-blue-500 text-white shadow-sm shadow-blue-200"
+                          : "bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700"
+                      }`}
+                    >
+                      <MapPin className="h-3 w-3" />
+                      Hors site
+                    </button>
+                    <div className="h-5 w-px bg-slate-200 mx-1" />
+                    <button
+                      type="button"
+                      onClick={toggleCarpoolFilter}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+                        carpoolFilter
+                          ? "bg-violet-500 text-white shadow-sm shadow-violet-200"
+                          : "bg-slate-100 text-slate-600 hover:bg-violet-50 hover:text-violet-700"
+                      }`}
+                    >
+                      <Car className="h-3 w-3" />
+                      Covoiturage
+                    </button>
                   </div>
                 </div>
 
+                {/* Filtre par type */}
+                {uniqueTypes.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Type
+                    </span>
+                    <div className="relative flex-1 min-w-0">
+                      <select
+                        value={selectedType === "all" ? "" : selectedType}
+                        onChange={(e) => changeFilter({ type: e.target.value || "all" })}
+                        className={`w-full appearance-none rounded-lg border py-1.5 pl-3 pr-8 text-[11px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+                          selectedType !== "all"
+                            ? "border-purple-300 bg-purple-50 text-purple-800"
+                            : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white"
+                        }`}
+                      >
+                        <option value="">Tous les types</option>
+                        {uniqueTypes.map((type) => (
+                          <option key={type} value={type}>
+                            {type}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronRight className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rotate-90 text-slate-400" />
+                    </div>
+                  </div>
+                )}
+
                 {/* Filtre par période */}
-                <div>
-                  <p className="mb-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Période
-                  </p>
-                  <div className="flex flex-wrap gap-2">
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
                     {(["all", "today", "week", "month"] as Period[]).map((p) => (
                       <button
                         key={p}
                         type="button"
                         onClick={() => changeFilter({ period: p })}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold transition focus:outline-none ${
+                        className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
                           selectedPeriod === p
                             ? "bg-blue-600 text-white shadow-sm"
                             : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -466,18 +598,6 @@ export function ExplorePage() {
                     ))}
                   </div>
                 </div>
-
-                {/* Réinitialiser */}
-                {activeFilterCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 hover:text-purple-800 transition"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    Réinitialiser les filtres
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -578,13 +698,17 @@ export function ExplorePage() {
         mode="available"
         onSubscribed={(updated) => {
           setSubscribeErrorMessage(null);
+          setSubscribeSuccessMessage(SUBSCRIBE_SUCCESS_MESSAGE);
           setActivities((prev) => prev.filter((a) => a.id !== updated.id));
           setSelectedActivity(null);
           setModalOpen(false);
-          setSubscribeSuccessMessage(
-            "Votre inscription a bien été enregistrée. Retrouvez l'activité dans votre planning et dans la section « À venir »."
-          );
         }}
+      />
+
+      <PostSubscribeCarpoolModal
+        open={postSubscribeOpen}
+        activity={postSubscribeActivity}
+        onComplete={handlePostSubscribeComplete}
       />
 
       <MessageModal
