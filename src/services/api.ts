@@ -1,4 +1,4 @@
-import { getAccessToken, requireLogin } from "../auth/oidcConfig";
+import { getAccessToken, requireLogout } from "../auth/oidcConfig";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -44,8 +44,7 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     if (response.status === 401) {
-      // Token invalide/expiré : relancer le flow de connexion Keycloak.
-      requireLogin();
+      requireLogout();
       throw new ApiRequestError("Session expirée ou non authentifié.", 401);
     }
 

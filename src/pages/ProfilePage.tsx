@@ -15,7 +15,6 @@ import {
   Users,
   AlertTriangle,
   LogOut,
-  User,
 } from "lucide-react";
 import { getInitials } from "../utils/userDisplay";
 import { getMe, updateProfile } from "../services/userService";
@@ -23,7 +22,7 @@ import { getMyActivities, getRegisteredActivities } from "../services/activitySe
 import { isActivityNoLongerEditable } from "../utils/activitySchedule";
 import { keycloakAccountUrl } from "../auth/oidcConfig";
 import type { UserProfile } from "../types/auth";
-import { PAGE_CONTAINER_CLASS } from "../layout/page";
+import { CollaboratorLayout } from "../components/layout/CollaboratorLayout";
 
 // ── Inline Toggle (Switch) ────────────────────────────────────────────────────
 function Toggle({
@@ -56,15 +55,13 @@ function Toggle({
 function Toast({
   message,
   type,
-  adminShell,
 }: {
   message: string;
   type: "success" | "error";
-  adminShell?: boolean;
 }) {
   return (
     <div
-      className={`fixed ${adminShell ? "bottom-6" : "bottom-20"} left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white transition-all ${
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white transition-all ${
         type === "success" ? "bg-green-600" : "bg-red-600"
       }`}
     >
@@ -269,19 +266,20 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
 
   // ── Render states ───────────────────────────────────────────────────────────
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    const spinner = (
+      <div className="flex items-center justify-center py-20">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-gray-500 text-sm">Chargement du profil…</p>
         </div>
       </div>
     );
+    return adminShell ? spinner : <CollaboratorLayout>{spinner}</CollaboratorLayout>;
   }
 
   if (loadError || !profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    const err = (
+      <div className="flex items-center justify-center py-20">
         <div className="text-center p-6">
           <p className="text-red-500 mb-4">{loadError || "Profil introuvable"}</p>
           <button
@@ -293,6 +291,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
         </div>
       </div>
     );
+    return adminShell ? err : <CollaboratorLayout>{err}</CollaboratorLayout>;
   }
 
   const stats = [
@@ -319,51 +318,10 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     },
   ];
 
-  const rootClass = adminShell
-    ? "w-full"
-    : "min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50";
-
-  return (
-    <div className={rootClass}>
-      {/* ── Toast ── */}
-      {toast && (
-        <Toast message={toast.message} type={toast.type} adminShell={adminShell} />
-      )}
-
-      {/* ── En-tête (masqué dans le shell admin : le titre est dans la barre du haut) ── */}
-      {!adminShell && (
-        <section className={`${PAGE_CONTAINER_CLASS} pt-4 pb-1`} aria-label="Profil">
-          <div className="rounded-2xl bg-white shadow-md shadow-slate-200/50 ring-1 ring-slate-200/80 overflow-hidden">
-            <div
-              className="h-1.5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600"
-              aria-hidden
-            />
-            <div className="p-4 sm:p-5">
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div
-                  className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white shadow-md"
-                  aria-hidden
-                >
-                  <User className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2} />
-                </div>
-                <div className="min-w-0 flex-1 pt-0.5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">
-                    Compte
-                  </p>
-                  <h1 className="mt-0.5 text-lg sm:text-xl font-bold tracking-tight text-slate-900">
-                    Mon profil
-                  </h1>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Gérez vos informations personnelles
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      <div className={`${PAGE_CONTAINER_CLASS} ${adminShell ? "py-2" : "py-6"}`}>
+  const mainContent = (
+    <>
+      {toast && <Toast message={toast.message} type={toast.type} />}
+      <div className={adminShell ? "py-2" : "space-y-6 pb-6"}>
         {/* ── Profile card ── */}
         <div className="bg-white p-5 sm:p-6 mb-6 shadow-xl rounded-2xl">
           <div className="flex flex-col sm:flex-row items-center gap-5">
@@ -764,6 +722,12 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
           </button>
         </div>
       </Modal>
-    </div>
+    </>
+  );
+
+  return adminShell ? (
+    <div className="w-full">{mainContent}</div>
+  ) : (
+    <CollaboratorLayout>{mainContent}</CollaboratorLayout>
   );
 }

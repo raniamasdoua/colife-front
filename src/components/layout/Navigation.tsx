@@ -74,12 +74,12 @@ export function Navigation() {
               <PlusCircle className="w-4 h-4 shrink-0" />
               <span>Créer</span>
             </button>
-            {/* Notifications (placeholder) */}
             <button
               type="button"
+              aria-label="Notifications"
               className="w-9 h-9 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 transition"
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-5 h-5" aria-hidden />
             </button>
 
             {/* Initiales : style fixe sur toutes les pages (la page active est dans la barre du bas) */}

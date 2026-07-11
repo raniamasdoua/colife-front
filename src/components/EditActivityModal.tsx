@@ -30,6 +30,15 @@ import type {
 import { ActivityDatePicker } from "./activity/ActivityDatePicker";
 import { ActivityTimeSelect } from "./activity/ActivityTimeSelect";
 import { ActivityTypeSelect } from "./activity/ActivityTypeSelect";
+import {
+  FORM_LABEL_CLASS,
+  MAX_TITLE,
+  MAX_DESCRIPTION,
+  MAX_ROOM,
+  todayIso,
+  toBackendTime,
+} from "./activity/activityFormUtils";
+import { OffSiteAddressFields } from "./activity/OffSiteAddressFields";
 
 /* ── Constantes ─────────────────────────────────────────────────────────────── */
 
@@ -37,38 +46,6 @@ const inputClass =
   "w-full py-2.5 px-3 border border-gray-200 rounded-xl text-sm bg-white " +
   "focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent " +
   "disabled:opacity-50 disabled:bg-gray-50";
-
-const labelClass = "block text-xs font-semibold text-gray-600 mb-1.5";
-
-const MAX_TITLE = 200;
-const MAX_DESCRIPTION = 5000;
-const MAX_STREET = 255;
-const MAX_COMPLEMENT = 255;
-const MAX_CITY = 120;
-const MAX_ROOM = 255;
-
-/* ── Helpers ────────────────────────────────────────────────────────────────── */
-
-function todayIso(): string {
-  const d = new Date();
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, "0"),
-    String(d.getDate()).padStart(2, "0"),
-  ].join("-");
-}
-
-function toBackendTime(value: string): string {
-  if (!value) return value;
-  const parts = value.split(":");
-  if (parts.length >= 2) {
-    const h = parts[0].padStart(2, "0");
-    const min = parts[1].padStart(2, "0");
-    const sec = (parts[2] ?? "0").padStart(2, "0");
-    return `${h}:${min}:${sec}`;
-  }
-  return value;
-}
 
 function toPickerTime(value: string): string {
   return value ? value.slice(0, 5) : "";
@@ -439,7 +416,7 @@ export function EditActivityModal({
                   </div>
 
                   <div>
-                    <label htmlFor="edit-title" className={labelClass}>
+                    <label htmlFor="edit-title" className={FORM_LABEL_CLASS}>
                       Titre de l&apos;activité *
                     </label>
                     <input
@@ -456,7 +433,7 @@ export function EditActivityModal({
                   </div>
 
                   <div>
-                    <label htmlFor="edit-type" className={labelClass}>
+                    <label htmlFor="edit-type" className={FORM_LABEL_CLASS}>
                       Type d&apos;activité *
                     </label>
                     <ActivityTypeSelect
@@ -470,7 +447,7 @@ export function EditActivityModal({
                   </div>
 
                   <div>
-                    <label htmlFor="edit-desc" className={labelClass}>
+                    <label htmlFor="edit-desc" className={FORM_LABEL_CLASS}>
                       Description
                     </label>
                     <textarea
@@ -494,18 +471,18 @@ export function EditActivityModal({
                   </div>
 
                   <div>
-                    <label htmlFor="edit-date" className={labelClass}>Date *</label>
+                    <label htmlFor="edit-date" className={FORM_LABEL_CLASS}>Date *</label>
                     <ActivityDatePicker id="edit-date" value={date} onChange={setDate} disabled={submitting} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label htmlFor="edit-start-h" className={labelClass}>Heure de début *</label>
-                      <ActivityTimeSelect idPrefix="edit-start" value={startTime} onChange={setStartTime} disabled={submitting} variant="start" />
+                      <p className={FORM_LABEL_CLASS}>Heure de début *</p>
+                      <ActivityTimeSelect idPrefix="edit-start" value={startTime} onChange={setStartTime} disabled={submitting} />
                     </div>
                     <div>
-                      <label htmlFor="edit-end-h" className={labelClass}>Heure de fin *</label>
-                      <ActivityTimeSelect idPrefix="edit-end" value={endTime} onChange={setEndTime} disabled={submitting} variant="end" />
+                      <p className={FORM_LABEL_CLASS}>Heure de fin *</p>
+                      <ActivityTimeSelect idPrefix="edit-end" value={endTime} onChange={setEndTime} disabled={submitting} />
                     </div>
                   </div>
                 </section>
@@ -527,7 +504,7 @@ export function EditActivityModal({
                   )}
 
                   <div>
-                    <label htmlFor="edit-cap" className={labelClass}>Nombre de places *</label>
+                    <label htmlFor="edit-cap" className={FORM_LABEL_CLASS}>Nombre de places *</label>
                     <div className="relative">
                       <Users
                         className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400"
@@ -596,7 +573,7 @@ export function EditActivityModal({
                   {/* Champ Salle (sur site) */}
                   {locationType === "ON_SITE" && (
                     <div>
-                      <label htmlFor="edit-room" className={labelClass}>Salle *</label>
+                      <label htmlFor="edit-room" className={FORM_LABEL_CLASS}>Salle *</label>
                       <input
                         id="edit-room"
                         type="text"
@@ -614,71 +591,19 @@ export function EditActivityModal({
 
                   {/* Champs Adresse (hors site) */}
                   {locationType === "OFF_SITE" && (
-                    <>
-                      <div>
-                        <label htmlFor="edit-street" className={labelClass}>Adresse (rue, n°) *</label>
-                        <input
-                          id="edit-street"
-                          type="text"
-                          required
-                          maxLength={MAX_STREET}
-                          autoComplete="street-address"
-                          className={inputClass}
-                          value={street}
-                          onChange={(e) => setStreet(e.target.value)}
-                          disabled={submitting}
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="edit-complement" className={labelClass}>
-                          Complément (bâtiment, étage…)
-                        </label>
-                        <input
-                          id="edit-complement"
-                          type="text"
-                          maxLength={MAX_COMPLEMENT}
-                          className={inputClass}
-                          value={complement}
-                          onChange={(e) => setComplement(e.target.value)}
-                          disabled={submitting}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                          <label htmlFor="edit-postal" className={labelClass}>Code postal *</label>
-                          <input
-                            id="edit-postal"
-                            type="text"
-                            required
-                            inputMode="numeric"
-                            maxLength={5}
-                            autoComplete="postal-code"
-                            className={inputClass}
-                            value={postalCode}
-                            onChange={(e) =>
-                              setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5))
-                            }
-                            disabled={submitting}
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="edit-city" className={labelClass}>Ville *</label>
-                          <input
-                            id="edit-city"
-                            type="text"
-                            required
-                            maxLength={MAX_CITY}
-                            autoComplete="address-level2"
-                            className={inputClass}
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                            disabled={submitting}
-                          />
-                        </div>
-                      </div>
-                    </>
+                    <OffSiteAddressFields
+                      idPrefix="edit-"
+                      street={street}
+                      complement={complement}
+                      postalCode={postalCode}
+                      city={city}
+                      disabled={submitting}
+                      inputClass={inputClass}
+                      onStreetChange={setStreet}
+                      onComplementChange={setComplement}
+                      onPostalCodeChange={setPostalCode}
+                      onCityChange={setCity}
+                    />
                   )}
                 </section>
 
@@ -822,18 +747,18 @@ export function EditActivityModal({
                             <div className="space-y-3 rounded-xl bg-white/80 p-3 ring-1 ring-violet-200">
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                  <label className={labelClass}>Heure de départ *</label>
-                                  <input
-                                    type="time"
-                                    className={inputClass}
+                                  <p className={FORM_LABEL_CLASS}>Heure de départ *</p>
+                                  <ActivityTimeSelect
+                                    idPrefix="carpool-edit-departure"
                                     value={carpoolEditDeparture}
-                                    onChange={(e) => setCarpoolEditDeparture(e.target.value)}
+                                    onChange={setCarpoolEditDeparture}
                                     disabled={carpoolEditLoading}
                                   />
                                 </div>
                                 <div>
-                                  <label className={labelClass}>Places passagers *</label>
+                                  <label htmlFor="carpool-edit-seats" className={FORM_LABEL_CLASS}>Places passagers *</label>
                                   <input
+                                    id="carpool-edit-seats"
                                     type="number"
                                     min={myCarpool.passengerCount || 1}
                                     className={inputClass}
@@ -942,18 +867,18 @@ export function EditActivityModal({
                           <div className="space-y-3 rounded-xl bg-white/80 p-3 ring-1 ring-violet-200">
                             <div className="grid grid-cols-2 gap-3">
                               <div>
-                                <label className={labelClass}>Heure de départ *</label>
-                                <input
-                                  type="time"
-                                  className={inputClass}
+                                <p className={FORM_LABEL_CLASS}>Heure de départ *</p>
+                                <ActivityTimeSelect
+                                  idPrefix="carpool-new-departure"
                                   value={carpoolNewDeparture}
-                                  onChange={(e) => setCarpoolNewDeparture(e.target.value)}
+                                  onChange={setCarpoolNewDeparture}
                                   disabled={carpoolProposeLoading}
                                 />
                               </div>
                               <div>
-                                <label className={labelClass}>Places passagers *</label>
+                                <label htmlFor="carpool-new-seats" className={FORM_LABEL_CLASS}>Places passagers *</label>
                                 <input
+                                  id="carpool-new-seats"
                                   type="number"
                                   min={1}
                                   className={inputClass}

@@ -1,27 +1,23 @@
-import { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "react-oidc-context";
 
-import { HomePage } from "./pages/HomePage";
-import { PlanningPage } from "./pages/PlanningPage";
-import { ExplorePage } from "./pages/ExplorePage";
-import { ProfilePage } from "./pages/ProfilePage";
-import { WelcomePage } from "./pages/WelcomePage";
-import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
-import { AdminActivitiesPage } from "./pages/admin/AdminActivitiesPage";
-import { AdminActivityTypesPage } from "./pages/admin/AdminActivityTypesPage";
-import { AdminProfilePage } from "./pages/admin/AdminProfilePage";
-import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
-import { Navigation } from "./components/layout/Navigation";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
 import { CreateActivityModalProvider } from "./context/CreateActivityModalContext";
-import { oidcConfig, setAccessToken, setLoginTrigger } from "./auth/oidcConfig";
+import { oidcConfig, setAccessToken, setLoginTrigger, setLogoutTrigger } from "./auth/oidcConfig";
 
-/**
- * Pont entre la lib OIDC (React) et la couche fetch (modules non-React) :
- * pousse le token courant et le déclencheur de connexion vers api.ts.
- */
+const HomePage = lazy(() => import("./pages/HomePage").then((m) => ({ default: m.HomePage })));
+const PlanningPage = lazy(() => import("./pages/PlanningPage").then((m) => ({ default: m.PlanningPage })));
+const ExplorePage = lazy(() => import("./pages/ExplorePage").then((m) => ({ default: m.ExplorePage })));
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+const WelcomePage = lazy(() => import("./pages/WelcomePage").then((m) => ({ default: m.WelcomePage })));
+const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage").then((m) => ({ default: m.AdminDashboardPage })));
+const AdminActivitiesPage = lazy(() => import("./pages/admin/AdminActivitiesPage").then((m) => ({ default: m.AdminActivitiesPage })));
+const AdminActivityTypesPage = lazy(() => import("./pages/admin/AdminActivityTypesPage").then((m) => ({ default: m.AdminActivityTypesPage })));
+const AdminProfilePage = lazy(() => import("./pages/admin/AdminProfilePage").then((m) => ({ default: m.AdminProfilePage })));
+const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage").then((m) => ({ default: m.AdminUsersPage })));
+
 function AuthBridge() {
   const auth = useAuth();
 
@@ -32,6 +28,12 @@ function AuthBridge() {
   useEffect(() => {
     setLoginTrigger(() => {
       void auth.signinRedirect();
+    });
+  }, [auth]);
+
+  useEffect(() => {
+    setLogoutTrigger(() => {
+      void auth.removeUser();
     });
   }, [auth]);
 
@@ -48,23 +50,11 @@ function FullScreenLoader() {
 
 function AppContent() {
   const auth = useAuth();
-  const location = useLocation();
-  const isAdminPage = location.pathname.startsWith("/admin");
-  const isWelcomePage = location.pathname === "/welcome";
 
-  // Navigation cachée sur la page d'accueil publique et les pages admin (layout dédié).
-  const showNavigation = !isAdminPage && !isWelcomePage;
-
-  // Tant que la lib OIDC s'initialise ou traite le retour de Keycloak
-  // (URL avec ?code&state), on n'affiche PAS les routes : sinon le <Navigate>
-  // de "/" effacerait ces paramètres avant que la lib ne les consomme
-  // → boucle de redirection. On laisse la lib finir, puis elle nettoie l'URL.
   if (auth.isLoading || auth.activeNavigator) {
     return <FullScreenLoader />;
   }
 
-  // Échec d'authentification (ex. callback invalide) : on affiche l'erreur
-  // au lieu de relancer une connexion en boucle.
   if (auth.error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
@@ -80,99 +70,90 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
-      {showNavigation && <Navigation />}
+    <Suspense fallback={<FullScreenLoader />}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/welcome" element={<WelcomePage />} />
+        <Route path="/activities/new" element={<Navigate to="/home" replace />} />
 
-      <main className={showNavigation ? "flex-1 pb-16" : "flex-1"}>
-        <Routes>
-          <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/welcome" element={<WelcomePage />} />
-          <Route path="/activities/new" element={<Navigate to="/home" replace />} />
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <HomePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/planning"
+          element={
+            <ProtectedRoute>
+              <PlanningPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/explore"
+          element={
+            <ProtectedRoute>
+              <ExplorePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute>
-                <HomePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/planning"
-            element={
-              <ProtectedRoute>
-                <PlanningPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/explore"
-            element={
-              <ProtectedRoute>
-                <ExplorePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <AdminRoute>
+              <AdminDashboardPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/activities"
+          element={
+            <AdminRoute>
+              <AdminActivitiesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/activity-types"
+          element={
+            <AdminRoute>
+              <AdminActivityTypesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <AdminRoute>
+              <AdminUsersPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/profile"
+          element={
+            <AdminRoute>
+              <AdminProfilePage />
+            </AdminRoute>
+          }
+        />
 
-          {/* Routes admin — protégées par AdminRoute (session OIDC + rôle ADMIN) */}
-          <Route
-            path="/admin"
-            element={<Navigate to="/admin/dashboard" replace />}
-          />
-          <Route
-            path="/admin/dashboard"
-            element={
-              <AdminRoute>
-                <AdminDashboardPage />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/activities"
-            element={
-              <AdminRoute>
-                <AdminActivitiesPage />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/activity-types"
-            element={
-              <AdminRoute>
-                <AdminActivityTypesPage />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <AdminRoute>
-                <AdminUsersPage />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/profile"
-            element={
-              <AdminRoute>
-                <AdminProfilePage />
-              </AdminRoute>
-            }
-          />
-
-          {/* Toute route inconnue renvoie vers l'accueil (l'auth est gérée par Keycloak). */}
-          <Route path="*" element={<Navigate to="/home" replace />} />
-        </Routes>
-      </main>
-    </div>
+        <Route path="*" element={<Navigate to="/home" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 

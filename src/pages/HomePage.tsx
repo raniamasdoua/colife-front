@@ -28,7 +28,7 @@ import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
 import { PostSubscribeCarpoolModal } from "../components/home/PostSubscribeCarpoolModal";
 import { EditActivityModal } from "../components/EditActivityModal";
 import { MessageModal } from "../components/ui/MessageModal";
-import { PAGE_CONTAINER_CLASS } from "../layout/page";
+import { CollaboratorLayout } from "../components/layout/CollaboratorLayout";
 import type { ActivityResponse } from "../types/activity";
 import { getTypeConfig } from "../utils/activityDisplay";
 import { shouldOfferCarpoolAfterSubscribe, SUBSCRIBE_SUCCESS_MESSAGE } from "../utils/subscribeMessages";
@@ -159,6 +159,22 @@ export function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const newActivity = (e as CustomEvent<ActivityResponse>).detail;
+      setOrganizedActivities((prev) =>
+        [newActivity, ...prev].sort((a, b) => {
+          const da = parseDate(a.date).getTime();
+          const db = parseDate(b.date).getTime();
+          if (da !== db) return da - db;
+          return a.startTime.localeCompare(b.startTime);
+        })
+      );
+    };
+    window.addEventListener("colife:activity-created", handler);
+    return () => window.removeEventListener("colife:activity-created", handler);
+  }, []);
+
   const openDetail = (a: ActivityResponse, mode: "organizer" | "available" = "available") => {
     setDetail(a);
     setDetailMode(mode);
@@ -280,15 +296,8 @@ export function HomePage() {
   ];
 
   return (
-    <div className="relative min-h-full pb-6 overflow-x-hidden">
-      {/* Fond décoratif */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute top-16 left-4 h-72 w-72 rounded-full bg-blue-400/20 blur-3xl animate-pulse" />
-        <div className="absolute bottom-32 right-4 h-96 w-96 rounded-full bg-purple-400/20 blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
-        <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-pink-400/10 blur-3xl animate-pulse" style={{ animationDelay: "2s" }} />
-      </div>
-
-      <div className="relative z-10">
+    <CollaboratorLayout>
+      <div className="space-y-6 pb-4">
         <HomeWelcomeSection
           firstName={firstName}
           organizedCount={organizedActivities.length}
@@ -297,23 +306,21 @@ export function HomePage() {
         />
 
         {/* Catégories */}
-        <div className="max-w-4xl mx-auto px-4 mt-6 mb-6 sm:mb-8">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-            {categories.map((c) => {
-              const Icon = c.icon;
-              return (
-                <button key={c.name} type="button" className="rounded-2xl bg-white p-3 sm:p-4 text-left shadow-md shadow-slate-200/40 ring-1 ring-slate-100 transition hover:shadow-lg hover:ring-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500">
-                  <div className={`mb-2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-gradient-to-br ${c.color} text-white shadow-sm`}>
-                    <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
-                  </div>
-                  <div className="text-xs sm:text-sm font-semibold text-slate-900 line-clamp-1">{c.name}</div>
-                </button>
-              );
-            })}
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          {categories.map((c) => {
+            const Icon = c.icon;
+            return (
+              <Link key={c.name} to="/explore" className="rounded-2xl bg-white p-3 sm:p-4 text-left shadow-md shadow-slate-200/40 ring-1 ring-slate-100 transition hover:shadow-lg hover:ring-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500">
+                <div className={`mb-2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-gradient-to-br ${c.color} text-white shadow-sm`} aria-hidden>
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                </div>
+                <div className="text-xs sm:text-sm font-semibold text-slate-900 line-clamp-1">{c.name}</div>
+              </Link>
+            );
+          })}
         </div>
 
-        <div className={`${PAGE_CONTAINER_CLASS} space-y-8 sm:space-y-10 pb-4`}>
+        <div className="space-y-8 sm:space-y-10">
 
           {/* ── Mes événements — 1 seule carte (la plus proche) ── */}
           <section>
@@ -327,9 +334,9 @@ export function HomePage() {
                 </div>
                 <p className="ml-11 sm:ml-12 text-xs sm:text-sm text-slate-500">Votre prochaine activité organisée</p>
               </div>
-              <Link to="/planning" className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1.5 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-                <span className="hidden sm:inline">Voir tout</span>
-                <ArrowRight className="h-4 w-4" />
+              <Link to="/planning" aria-label="Voir tous mes événements" className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1.5 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                <span className="hidden sm:inline" aria-hidden>Voir tout</span>
+                <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </div>
 
@@ -351,52 +358,50 @@ export function HomePage() {
                 <button
                   type="button"
                   onClick={() => openDetail(nextActivity, "organizer")}
-                  className={`w-full text-left overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 via-purple-600 to-pink-600 text-white shadow-xl transition hover:brightness-[1.03] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50`}
+                  className="w-full text-left overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-100 transition hover:shadow-lg hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2"
                 >
+                  <div className="h-1.5 bg-gradient-to-r from-blue-500 via-purple-600 to-pink-600" aria-hidden />
                   <div className="p-4 sm:p-5">
-                    {/* Badges */}
                     <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur-sm px-2.5 py-0.5 text-xs font-semibold text-white">
-                        <Star className="h-3 w-3 fill-white" />
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-blue-100">
+                        <Star className="h-3 w-3 fill-blue-500 text-blue-500" aria-hidden />
                         Organisateur
                       </span>
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge}`}>
                         {nextActivity.activityType.name}
                       </span>
                       {nextActivity.locationType === "ON_SITE" ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur-sm px-2.5 py-0.5 text-xs font-semibold text-white">
-                          <Building2 className="h-3 w-3" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                          <Building2 className="h-3 w-3" aria-hidden />
                           Sur site
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur-sm px-2.5 py-0.5 text-xs font-semibold text-white">
-                          <MapPin className="h-3 w-3" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-sky-100">
+                          <MapPin className="h-3 w-3" aria-hidden />
                           Hors site
                         </span>
                       )}
                       {nextActivity.carpool && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur-sm px-2.5 py-0.5 text-xs font-semibold text-white">
-                          <Car className="h-3 w-3" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-100">
+                          <Car className="h-3 w-3" aria-hidden />
                           Covoiturage
                         </span>
                       )}
                     </div>
 
-                    {/* Titre */}
-                    <h3 className="mb-3 text-lg sm:text-xl font-bold leading-tight">
+                    <h3 className="mb-3 text-lg sm:text-xl font-bold leading-tight text-slate-900">
                       {nextActivity.title}
                     </h3>
 
-                    {/* Infos */}
-                    <div className="mb-4 space-y-1.5 text-sm text-white/90">
+                    <div className="mb-4 space-y-1.5 text-sm text-slate-600">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 shrink-0" />
+                        <Calendar className="h-4 w-4 shrink-0 text-purple-500" aria-hidden />
                         <span>{formatDateShort(nextActivity.date)} · {formatTime(nextActivity.startTime)} – {formatTime(nextActivity.endTime)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         {nextActivity.locationType === "ON_SITE"
-                          ? <Building2 className="h-4 w-4 shrink-0" />
-                          : <MapPin className="h-4 w-4 shrink-0" />}
+                          ? <Building2 className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+                          : <MapPin className="h-4 w-4 shrink-0 text-purple-500" aria-hidden />}
                         <span className="line-clamp-1">
                           {nextActivity.locationType === "ON_SITE"
                             ? (nextActivity.location.room ?? "Sur site")
@@ -405,21 +410,28 @@ export function HomePage() {
                       </div>
                     </div>
 
-                    {/* Barre de progression participants */}
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-1.5 font-semibold">
-                          <Users className="h-4 w-4" />
+                        <span className="flex items-center gap-1.5 font-semibold text-slate-700">
+                          <Users className="h-4 w-4" aria-hidden />
                           {nextActivity.participantCount}/{nextActivity.capacity} participants
                         </span>
                         {isFull && (
-                          <span className="rounded-full bg-red-500/90 px-2 py-0.5 text-xs font-bold">Complet</span>
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">Complet</span>
                         )}
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-white/25">
+                      <div
+                        role="progressbar"
+                        aria-valuenow={fill}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`${nextActivity.participantCount} sur ${nextActivity.capacity} participants`}
+                        className="h-2 overflow-hidden rounded-full bg-slate-100"
+                      >
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${isFull ? "bg-red-400" : "bg-white"}`}
+                          className={`h-full rounded-full transition-all duration-500 ${isFull ? "bg-red-400" : "bg-gradient-to-r from-blue-500 to-purple-600"}`}
                           style={{ width: `${fill}%` }}
+                          aria-hidden
                         />
                       </div>
                     </div>
@@ -441,9 +453,9 @@ export function HomePage() {
                 </div>
                 <p className="ml-11 sm:ml-12 text-xs sm:text-sm text-slate-500">Vos prochaines inscriptions</p>
               </div>
-              <Link to="/planning" className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1.5 text-xs sm:text-sm font-semibold text-purple-600 hover:bg-purple-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500">
-                <span className="hidden sm:inline">Voir tout</span>
-                <ArrowRight className="h-4 w-4" />
+              <Link to="/planning" aria-label="Voir toutes mes inscriptions à venir" className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1.5 text-xs sm:text-sm font-semibold text-purple-600 hover:bg-purple-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500">
+                <span className="hidden sm:inline" aria-hidden>Voir tout</span>
+                <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </div>
             {loading ? (
@@ -586,9 +598,9 @@ export function HomePage() {
                   Activités organisées par vos collègues
                 </p>
               </div>
-              <Link to="/explore" className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1.5 text-xs sm:text-sm font-semibold text-orange-600 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">
-                <span className="hidden sm:inline">Voir tout</span>
-                <ArrowRight className="h-4 w-4" />
+              <Link to="/explore" aria-label="Voir toutes les activités disponibles" className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1.5 text-xs sm:text-sm font-semibold text-orange-600 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">
+                <span className="hidden sm:inline" aria-hidden>Voir tout</span>
+                <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </div>
 
@@ -769,6 +781,6 @@ export function HomePage() {
         message={unsubscribeErrorMessage ?? ""}
         onClose={() => setUnsubscribeErrorMessage(null)}
       />
-    </div>
+    </CollaboratorLayout>
   );
 }
