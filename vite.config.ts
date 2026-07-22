@@ -3,11 +3,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode: _mode }) => ({
   plugins: [react(), tailwindcss()],
-  esbuild: {
-    drop: mode === "production" ? ["console", "debugger"] : [],
-  },
   build: {
     target: "esnext",
     cssCodeSplit: true,
