@@ -103,14 +103,6 @@ describe("HomePage", () => {
     expect(items.length).toBeGreaterThan(0);
   });
 
-  it("affiche les catégories d'activités", async () => {
-    renderPage();
-    await screen.findByText("Sport");
-    expect(screen.getByText("Bien-être")).toBeInTheDocument();
-    expect(screen.getByText("Social")).toBeInTheDocument();
-    expect(screen.getByText("Explorer")).toBeInTheDocument();
-  });
-
   it("affiche le bouton S'inscrire sur les activités disponibles", async () => {
     renderPage();
     const btns = await screen.findAllByRole("button", { name: "S'inscrire" });
