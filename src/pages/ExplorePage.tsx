@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import {
   Search,
   MapPin,
@@ -20,7 +20,7 @@ import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
 import { PostSubscribeCarpoolModal } from "../components/home/PostSubscribeCarpoolModal";
 import { MessageModal } from "../components/ui/MessageModal";
 import { CollaboratorLayout } from "../components/layout/CollaboratorLayout";
-import { getAvailableActivities, subscribeToActivity } from "../services/activityService";
+import { getAvailableActivities, subscribeToActivity, getActivityTypes } from "../services/activityService";
 import { ApiRequestError } from "../services/api";
 import type { ActivityResponse } from "../types/activity";
 import { getTypeConfig } from "../utils/activityDisplay";
@@ -237,6 +237,7 @@ export function ExplorePage() {
   const [subscribeSuccessMessage, setSubscribeSuccessMessage] = useState<string | null>(null);
   const [postSubscribeOpen, setPostSubscribeOpen] = useState(false);
   const [postSubscribeActivity, setPostSubscribeActivity] = useState<ActivityResponse | null>(null);
+  const [allTypes, setAllTypes] = useState<string[]>([]);
 
   /* Chargement */
   useEffect(() => {
@@ -261,17 +262,22 @@ export function ExplorePage() {
     };
   }, []);
 
+  /* Chargement des types pour le filtre */
+  useEffect(() => {
+    let cancelled = false;
+    getActivityTypes().then((types) => {
+      if (!cancelled) setAllTypes(types.map((t) => t.name).sort((a, b) => a.localeCompare(b, "fr")));
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   /* Activités avec places restantes (les complètes ne sont pas affichées) */
   const openActivities = useMemo(
     () => activities.filter((a) => a.participantCount < a.capacity),
     [activities]
   );
 
-  /* Types uniques pour le filtre (basés sur les activités ouvertes) */
-  const uniqueTypes = useMemo(
-    () => [...new Set(openActivities.map((a) => a.activityType.name))].sort((a, b) => a.localeCompare(b, "fr")),
-    [openActivities]
-  );
+  const uniqueTypes = allTypes;
 
   /* Filtrage */
   const filtered = useMemo(() => {
@@ -545,28 +551,36 @@ export function ExplorePage() {
 
                 {/* Filtre par type */}
                 {uniqueTypes.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <div className="flex items-start gap-2">
+                    <span className="w-14 shrink-0 pt-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       Type
                     </span>
-                    <div className="relative flex-1 min-w-0">
-                      <select
-                        value={selectedType === "all" ? "" : selectedType}
-                        onChange={(e) => changeFilter({ type: e.target.value || "all" })}
-                        className={`w-full appearance-none rounded-lg border py-1.5 pl-3 pr-8 text-[11px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
-                          selectedType !== "all"
-                            ? "border-purple-300 bg-purple-50 text-purple-800"
-                            : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white"
+                    <div className="scrollbar-colife flex flex-1 gap-1.5 overflow-x-auto pb-1.5">
+                      <button
+                        type="button"
+                        onClick={() => changeFilter({ type: "all" })}
+                        className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+                          selectedType === "all"
+                            ? "bg-purple-600 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                         }`}
                       >
-                        <option value="">Tous les types</option>
-                        {uniqueTypes.map((type) => (
-                          <option key={type} value={type}>
-                            {type}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronRight className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rotate-90 text-slate-400" />
+                        Tous
+                      </button>
+                      {uniqueTypes.map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => changeFilter({ type: selectedType === type ? "all" : type })}
+                          className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+                            selectedType === type
+                              ? "bg-purple-600 text-white shadow-sm"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}

@@ -30,3 +30,6 @@ coverage
 
 # SonarQube
 .scannerwork
+
+# Rapport PFE (local uniquement)
+rapport/

@@ -4,12 +4,19 @@ import {
   ChevronDown,
   Clock,
   Loader2,
+  Plus,
   Users,
   X,
 } from "lucide-react";
-import { getActivityCarpools, joinCarpool } from "../../services/activityService";
+import {
+  getActivityCarpools,
+  joinCarpool,
+  createCarpoolAsSubscriber,
+} from "../../services/activityService";
 import { ApiRequestError } from "../../services/api";
 import type { ActivityResponse, CarpoolDetail, CarpoolPassengerSummary } from "../../types/activity";
+import { ActivityTimeSelect } from "../activity/ActivityTimeSelect";
+import { FORM_LABEL_CLASS, toBackendTime } from "../activity/activityFormUtils";
 
 function formatTime(t: string): string {
   return t.slice(0, 5);
@@ -161,6 +168,13 @@ export function PostSubscribeCarpoolModal({
   const [carpools, setCarpools] = useState<CarpoolDetail[]>([]);
   const [joinedCarpoolId, setJoinedCarpoolId] = useState<number | null>(null);
   const [joiningId, setJoiningId] = useState<number | null>(null);
+  const [userRole, setUserRole] = useState<"NONE" | "PASSENGER" | "DRIVER">("NONE");
+
+  const [proposeOpen, setProposeOpen] = useState(false);
+  const [departureTime, setDepartureTime] = useState("");
+  const [maxPassengers, setMaxPassengers] = useState("1");
+  const [proposeLoading, setProposeLoading] = useState(false);
+  const [proposeError, setProposeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !activity) return;
@@ -172,11 +186,17 @@ export function PostSubscribeCarpoolModal({
     setCarpools([]);
     setJoinedCarpoolId(null);
     setJoiningId(null);
+    setUserRole("NONE");
+    setProposeOpen(false);
+    setDepartureTime("");
+    setMaxPassengers("1");
+    setProposeError(null);
 
     getActivityCarpools(activity.id)
       .then((data) => {
         if (cancelled) return;
         setCarpools(data.carpools);
+        setUserRole(data.userRole as "NONE" | "PASSENGER" | "DRIVER");
         if (data.userRole === "PASSENGER" && data.userCarpoolId) {
           setJoinedCarpoolId(data.userCarpoolId);
         }
@@ -216,6 +236,7 @@ export function PostSubscribeCarpoolModal({
       const fresh = await getActivityCarpools(activity.id);
       setCarpools(fresh.carpools);
       setJoinedCarpoolId(carpoolId);
+      setUserRole("PASSENGER");
     } catch (e) {
       setActionError(
         e instanceof ApiRequestError ? e.message : "Impossible de rejoindre ce covoiturage."
@@ -225,7 +246,41 @@ export function PostSubscribeCarpoolModal({
     }
   };
 
+  const handlePropose = async () => {
+    setProposeError(null);
+    if (!departureTime) {
+      setProposeError("L'heure de départ est obligatoire.");
+      return;
+    }
+    const maxP = Number(maxPassengers);
+    if (!Number.isFinite(maxP) || maxP < 1) {
+      setProposeError("Le nombre de places doit être ≥ 1.");
+      return;
+    }
+    const depTime = toBackendTime(departureTime);
+    const actStart = activity.startTime ? toBackendTime(activity.startTime.slice(0, 5)) : null;
+    if (actStart && depTime >= actStart) {
+      setProposeError("L'heure de départ doit être avant le début de l'activité.");
+      return;
+    }
+    setProposeLoading(true);
+    try {
+      await createCarpoolAsSubscriber(activity.id, { departureTime: depTime, maxPassengers: maxP });
+      const fresh = await getActivityCarpools(activity.id);
+      setCarpools(fresh.carpools);
+      setUserRole("DRIVER");
+      setProposeOpen(false);
+    } catch (e) {
+      setProposeError(
+        e instanceof ApiRequestError ? e.message : "Impossible de proposer le covoiturage."
+      );
+    } finally {
+      setProposeLoading(false);
+    }
+  };
+
   const joinableCarpools = carpools.filter((c) => c.availableSeats > 0);
+  const isDone = userRole === "PASSENGER" || userRole === "DRIVER";
 
   return (
     <div
@@ -252,7 +307,7 @@ export function PostSubscribeCarpoolModal({
               </div>
               <div className="min-w-0">
                 <h2 id="post-subscribe-carpool-title" className="font-bold text-slate-900 text-base leading-snug">
-                  Covoiturage disponible
+                  Covoiturage
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-500 line-clamp-2">{activity.title}</p>
               </div>
@@ -267,7 +322,11 @@ export function PostSubscribeCarpoolModal({
             </button>
           </div>
           <p className="mt-3 text-sm text-slate-600 leading-relaxed">
-            Vous êtes inscrit à cette activité hors site. Rejoignez un covoiturage ou continuez sans.
+            {userRole === "DRIVER"
+              ? "Votre covoiturage a été proposé."
+              : userRole === "PASSENGER"
+                ? "Vous avez rejoint un covoiturage."
+                : "Vous êtes inscrit à cette activité hors site. Rejoignez un covoiturage, proposez le vôtre ou continuez sans."}
           </p>
         </div>
 
@@ -289,21 +348,21 @@ export function PostSubscribeCarpoolModal({
             </p>
           )}
 
-          {!loading && !error && carpools.length === 0 && (
+          {!loading && !error && carpools.length === 0 && userRole === "NONE" && (
             <div className="rounded-xl border border-dashed border-violet-200 bg-violet-50/50 px-4 py-6 text-center">
               <Car className="mx-auto h-8 w-8 text-violet-300 mb-2" />
               <p className="text-sm font-semibold text-slate-700">Aucune proposition pour l&apos;instant</p>
               <p className="mt-1 text-xs text-slate-500">
-                Vous pourrez en proposer une ou rejoindre un covoiturage depuis le détail de l&apos;activité.
+                Soyez le premier à proposer un covoiturage ci-dessous.
               </p>
             </div>
           )}
 
-          {!loading && !error && carpools.length > 0 && joinableCarpools.length === 0 && !joinedCarpoolId && (
+          {!loading && !error && carpools.length > 0 && joinableCarpools.length === 0 && userRole === "NONE" && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
               <p className="text-sm font-semibold text-amber-800">Tous les covoiturages sont complets</p>
               <p className="mt-1 text-xs text-amber-700/90">
-                Vous pourrez proposer le vôtre depuis le détail de l&apos;activité.
+                Vous pouvez proposer le vôtre ci-dessous.
               </p>
             </div>
           )}
@@ -319,6 +378,78 @@ export function PostSubscribeCarpoolModal({
                 onJoin={() => handleJoin(c.id)}
               />
             ))}
+
+          {/* Section Proposer un covoiturage */}
+          {!loading && !error && userRole === "NONE" && (
+            <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50/60 to-purple-50/40 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => { setProposeOpen((v) => !v); setProposeError(null); }}
+                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-violet-700 hover:bg-violet-100/50 transition"
+              >
+                <span className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Proposer un covoiturage
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${proposeOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {proposeOpen && (
+                <div className="border-t border-violet-100 px-4 pb-4 pt-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className={FORM_LABEL_CLASS}>Heure de départ *</p>
+                      <ActivityTimeSelect
+                        idPrefix="propose-departure"
+                        value={departureTime}
+                        onChange={setDepartureTime}
+                        disabled={proposeLoading}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="propose-seats" className={FORM_LABEL_CLASS}>
+                        Places passagers *
+                      </label>
+                      <input
+                        id="propose-seats"
+                        type="number"
+                        min={1}
+                        value={maxPassengers}
+                        onChange={(e) => setMaxPassengers(e.target.value)}
+                        disabled={proposeLoading}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+
+                  {proposeError && (
+                    <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+                      {proposeError}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={proposeLoading}
+                    onClick={handlePropose}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-105 transition disabled:opacity-60"
+                  >
+                    {proposeLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Envoi…
+                      </>
+                    ) : (
+                      <>
+                        <Car className="h-4 w-4" />
+                        Proposer ce covoiturage
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="p-4 border-t border-slate-100 shrink-0">
@@ -327,7 +458,7 @@ export function PostSubscribeCarpoolModal({
             onClick={onComplete}
             className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 py-2.5 text-sm font-semibold text-white shadow-md hover:brightness-105 transition"
           >
-            {joinedCarpoolId ? "Terminer" : "Continuer sans covoiturage"}
+            {isDone ? "Terminer" : "Continuer sans covoiturage"}
           </button>
         </div>
       </div>
