@@ -265,6 +265,16 @@ export function EditActivityModal({
     const end = toBackendTime(endTime);
     if (start >= end) return "L'heure de fin doit être après l'heure de début.";
     if (date < minDate) return "La date ne peut pas être dans le passé.";
+
+    if (date === minDate && startTime) {
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const [h, m] = startTime.split(":").map(Number);
+      if (h * 60 + m <= nowMinutes) {
+        return "Le créneau horaire est déjà passé pour aujourd'hui.";
+      }
+    }
+
     return null;
   };
 

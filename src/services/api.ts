@@ -44,7 +44,9 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     if (response.status === 401) {
-      requireLogout();
+      if (!getAccessToken()) {
+        requireLogout();
+      }
       throw new ApiRequestError("Session expirée ou non authentifié.", 401);
     }
 

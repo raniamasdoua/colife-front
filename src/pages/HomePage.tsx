@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -11,8 +11,6 @@ import {
   MapPin,
   Star,
   Users,
-  Trophy,
-  Heart,
   Flame,
 } from "lucide-react";
 import { getMe } from "../services/userService";
@@ -75,9 +73,10 @@ function getNextActivities(activities: ActivityResponse[], limit: number): Activ
   return upcoming.slice(0, limit);
 }
 
-/** La plus proche activité à venir */
-function getNextActivity(activities: ActivityResponse[]): ActivityResponse | null {
-  return getNextActivities(activities, 1)[0] ?? null;
+/** La dernière activité créée par l'utilisateur */
+function getLastCreatedActivity(activities: ActivityResponse[]): ActivityResponse | null {
+  if (activities.length === 0) return null;
+  return [...activities].sort((a, b) => b.id - a.id)[0];
 }
 
 /* ── Squelettes ─────────────────────────────────────────────────────────────── */
@@ -281,19 +280,13 @@ export function HomePage() {
     }
   }, [editActivity, editOpen]);
 
-  const nextActivity = getNextActivity(organizedActivities);
+  const nextActivity = getLastCreatedActivity(organizedActivities);
   const upcomingRegistered = getNextActivities(registeredActivities, 2);
   const openAvailableActivities = useMemo(
     () => availableActivities.filter((a) => a.participantCount < a.capacity),
     [availableActivities]
   );
 
-  const categories = [
-    { name: "Sport", icon: Trophy, color: "from-blue-500 to-cyan-500" },
-    { name: "Bien-être", icon: Heart, color: "from-pink-500 to-rose-500" },
-    { name: "Social", icon: Users, color: "from-purple-500 to-indigo-500" },
-    { name: "Explorer", icon: Compass, color: "from-orange-500 to-red-500" },
-  ];
 
   return (
     <CollaboratorLayout>
@@ -305,22 +298,7 @@ export function HomePage() {
           availableCount={openAvailableActivities.length}
         />
 
-        {/* Catégories */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-          {categories.map((c) => {
-            const Icon = c.icon;
-            return (
-              <Link key={c.name} to="/explore" className="rounded-2xl bg-white p-3 sm:p-4 text-left shadow-md shadow-slate-200/40 ring-1 ring-slate-100 transition hover:shadow-lg hover:ring-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500">
-                <div className={`mb-2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-gradient-to-br ${c.color} text-white shadow-sm`} aria-hidden>
-                  <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
-                </div>
-                <div className="text-xs sm:text-sm font-semibold text-slate-900 line-clamp-1">{c.name}</div>
-              </Link>
-            );
-          })}
-        </div>
-
-        <div className="space-y-8 sm:space-y-10">
+<div className="space-y-8 sm:space-y-10">
 
           {/* ── Mes événements — 1 seule carte (la plus proche) ── */}
           <section>
@@ -332,7 +310,7 @@ export function HomePage() {
                   </div>
                   <h2 className="text-lg sm:text-2xl font-bold text-slate-900">Mes événements</h2>
                 </div>
-                <p className="ml-11 sm:ml-12 text-xs sm:text-sm text-slate-500">Votre prochaine activité organisée</p>
+                <p className="ml-11 sm:ml-12 text-xs sm:text-sm text-slate-500">Votre dernière activité créée</p>
               </div>
               <Link to="/planning" aria-label="Voir tous mes événements" className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1.5 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                 <span className="hidden sm:inline" aria-hidden>Voir tout</span>

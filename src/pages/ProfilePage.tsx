@@ -125,6 +125,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     address: "",
   });
   const [saveLoading, setSaveLoading] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
 
   // Stats
   const [organizedCount, setOrganizedCount] = useState<number | null>(null);
@@ -214,6 +215,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
   // ── Save profile ────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!profile) return;
+    if (phoneError) return;
     setSaveLoading(true);
     try {
       const updated = await updateProfile(profile.id, {
@@ -237,6 +239,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
       phone: profile?.phone ?? "",
       address: profile?.address ?? "",
     });
+    setPhoneError("");
     setIsEditing(false);
   };
 
@@ -473,14 +476,23 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
                   <input
                     type="tel"
                     value={editData.phone}
-                    onChange={(e) =>
-                      setEditData({ ...editData, phone: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditData({ ...editData, phone: val });
+                      if (val && !/^[+0-9][0-9 .\-()]{5,19}$/.test(val)) {
+                        setPhoneError("Numéro invalide (ex : +33 6 00 00 00 00)");
+                      } else {
+                        setPhoneError("");
+                      }
+                    }}
                     disabled={!isEditing}
                     placeholder={isEditing ? "+33 6 00 00 00 00" : "Non renseigné"}
-                    className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent disabled:opacity-70 disabled:cursor-not-allowed transition"
+                    className={`w-full pl-9 pr-3 py-2.5 border rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent disabled:opacity-70 disabled:cursor-not-allowed transition ${phoneError ? "border-red-400" : "border-gray-200"}`}
                   />
                 </div>
+                {phoneError && (
+                  <p className="text-xs text-red-500 mt-1">{phoneError}</p>
+                )}
               </div>
 
               {/* Address (editable) */}

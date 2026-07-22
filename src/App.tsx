@@ -56,6 +56,12 @@ function AppContent() {
   }
 
   if (auth.error) {
+    const isStaleState = auth.error.message.includes("No matching state found in storage");
+    if (isStaleState) {
+      auth.clearStaleState();
+      void auth.signinRedirect();
+      return null;
+    }
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
         <p className="text-red-600">Erreur d'authentification : {auth.error.message}</p>

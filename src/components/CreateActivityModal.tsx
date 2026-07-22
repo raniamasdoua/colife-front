@@ -198,6 +198,15 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
 
     if (date < minDate) return "La date ne peut pas être dans le passé.";
 
+    if (date === minDate && startTime) {
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const [h, m] = startTime.split(":").map(Number);
+      if (h * 60 + m <= nowMinutes) {
+        return "Le créneau horaire est déjà passé pour aujourd'hui.";
+      }
+    }
+
     if (carpoolEnabled) {
       if (!carpoolDepartureTime) return "L'heure de départ du covoiturage est obligatoire.";
       const maxP = Number(carpoolMaxPassengers);

@@ -20,13 +20,12 @@ export const oidcConfig: AuthProviderProps = {
   authority,
   client_id: clientId,
   redirect_uri: redirectUri,
-  // Après déconnexion Keycloak, on revient sur la page d'accueil de l'appli
-  // (pas sur un écran Keycloak).
   post_logout_redirect_uri: `${redirectUri}/welcome`,
   scope,
   userStore,
   stateStore,
-  // Nettoie le code/state de l'URL après le retour du flow d'autorisation.
+  monitorSession: false,
+  automaticSilentRenew: false,
   onSigninCallback: () => {
     window.history.replaceState({}, document.title, window.location.pathname);
   },
