@@ -15,6 +15,24 @@
   }
 }
 
+/* Scrollbar personnalisée — thème CoLife violet */
+@layer components {
+  .scrollbar-colife {
+    scrollbar-width: thin;
+    scrollbar-color: #a78bfa transparent;
+  }
+  .scrollbar-colife::-webkit-scrollbar {
+    height: 3px;
+  }
+  .scrollbar-colife::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-colife::-webkit-scrollbar-thumb {
+    background-color: #a78bfa;
+    border-radius: 9999px;
+  }
+}
+
 /* react-day-picker — variables d'accent alignées sur le thème CoLife */
 @layer components {
   .colife-rdp {

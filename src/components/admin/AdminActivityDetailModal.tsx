@@ -11,9 +11,6 @@ import {
   Trash2,
   Users,
   X,
-  CalendarCheck,
-  CalendarX,
-  Trash,
   Car,
   Building2,
 } from "lucide-react";
@@ -26,38 +23,9 @@ import type {
   CarpoolPassengerSummary,
 } from "../../types/activity";
 import { getTypeConfig } from "../../utils/activityDisplay";
-import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
 import { ActivityMetaBadges } from "./ActivityMetaBadges";
-
-/* ── Helpers ──────────────────────────────────────────────────────────────── */
-
-function formatDateLong(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function formatTime(hms: string): string {
-  return hms.slice(0, 5);
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-function isPast(activity: ActivityResponse): boolean {
-  return isActivityNoLongerEditable(activity, new Date());
-}
+import { ActivityStatusBadge, isPastActivity } from "./ActivityStatusBadge";
+import { formatDateLong, formatTime, toActivityInitials } from "../../utils/activityFormatters";
 
 /* ── Sous-composants ──────────────────────────────────────────────────────── */
 
@@ -113,37 +81,6 @@ function InfoRow({
       <span className="mt-0.5 shrink-0">{icon}</span>
       <span className="text-sm text-slate-700 leading-snug">{children}</span>
     </div>
-  );
-}
-
-function StatusBadge({ activity }: { activity: ActivityResponse }) {
-  if (activity.deleted) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-600">
-        <Trash className="h-3 w-3" />
-        Supprimée
-      </span>
-    );
-  }
-  const past = isPast(activity);
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-        past ? "bg-slate-100 text-slate-500" : "bg-emerald-100 text-emerald-700"
-      }`}
-    >
-      {past ? (
-        <>
-          <CalendarX className="h-3 w-3" />
-          Passée
-        </>
-      ) : (
-        <>
-          <CalendarCheck className="h-3 w-3" />
-          À venir
-        </>
-      )}
-    </span>
   );
 }
 
@@ -225,7 +162,7 @@ export function AdminActivityDetailModal({
 
   if (!open || !activity) return null;
 
-  const past = isPast(activity);
+  const past = isPastActivity(activity);
   const canAct = !activity.deleted && !past;
   const showActions = canAct && (onEdit || onDelete);
   const typeConfig = getTypeConfig(activity.activityType.name);
@@ -257,7 +194,7 @@ export function AdminActivityDetailModal({
             <div
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${typeConfig.gradient} text-white shadow-sm text-xs font-bold`}
             >
-              {getInitials(activity.organizerName)}
+              {toActivityInitials(activity.organizerName)}
             </div>
             <div className="min-w-0">
               <h2 className="font-bold text-slate-900 text-base leading-snug line-clamp-2">
@@ -270,7 +207,7 @@ export function AdminActivityDetailModal({
                   {activity.activityType.name}
                 </span>
                 <ActivityMetaBadges activity={activity} />
-                <StatusBadge activity={activity} />
+                <ActivityStatusBadge activity={activity} />
               </div>
             </div>
           </div>
@@ -291,7 +228,7 @@ export function AdminActivityDetailModal({
             <span
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${typeConfig.gradient} text-[11px] font-bold text-white`}
             >
-              {getInitials(activity.organizerName)}
+              {toActivityInitials(activity.organizerName)}
             </span>
             <div className="flex flex-col">
               <span className="text-[11px] text-slate-400">Organisé par</span>

@@ -1,5 +1,4 @@
 import { Sparkles, Star, Flame, TrendingUp } from "lucide-react";
-import { PAGE_CONTAINER_CLASS } from "../../layout/page";
 
 type HomeWelcomeSectionProps = {
   firstName: string;
@@ -8,10 +7,6 @@ type HomeWelcomeSectionProps = {
   availableCount: number;
 };
 
-/**
- * Bloc sous la nav : carte claire avec accent dégradé (cohérent avec le header)
- * plutôt qu’un second hero plein dégradé + textes illisibles de la maquette Figma.
- */
 export function HomeWelcomeSection({
   firstName,
   organizedCount,
@@ -19,7 +14,7 @@ export function HomeWelcomeSection({
   availableCount,
 }: HomeWelcomeSectionProps) {
   return (
-    <section className={`${PAGE_CONTAINER_CLASS} pt-4 pb-1`} aria-label="Accueil">
+    <section aria-label="Accueil">
       <div className="rounded-2xl bg-white shadow-md shadow-slate-200/50 ring-1 ring-slate-200/80 overflow-hidden">
         <div
           className="h-1.5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600"
@@ -77,3 +72,4 @@ export function HomeWelcomeSection({
     </section>
   );
 }
+

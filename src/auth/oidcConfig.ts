@@ -20,13 +20,12 @@ export const oidcConfig: AuthProviderProps = {
   authority,
   client_id: clientId,
   redirect_uri: redirectUri,
-  // Après déconnexion Keycloak, on revient sur la page d'accueil de l'appli
-  // (pas sur un écran Keycloak).
   post_logout_redirect_uri: `${redirectUri}/welcome`,
   scope,
   userStore,
   stateStore,
-  // Nettoie le code/state de l'URL après le retour du flow d'autorisation.
+  monitorSession: false,
+  automaticSilentRenew: false,
   onSigninCallback: () => {
     window.history.replaceState({}, document.title, window.location.pathname);
   },
@@ -74,11 +73,12 @@ export async function registerRedirect(): Promise<void> {
 
 /* ── Pont OIDC ↔ couche fetch (modules non-React) ────────────────────────────
  * api.ts n'est pas un composant React : il ne peut pas utiliser useAuth().
- * Le composant <AuthBridge/> (dans App.tsx) pousse ici le token courant et le
- * déclencheur de login, que le wrapper fetch consomme. */
+ * Le composant <AuthBridge/> (dans App.tsx) pousse ici le token courant et les
+ * déclencheurs, que le wrapper fetch consomme. */
 
 let currentAccessToken: string | null = null;
 let loginTrigger: () => void = () => {};
+let logoutTrigger: () => void = () => {};
 
 export function setAccessToken(token: string | null): void {
   currentAccessToken = token;
@@ -92,7 +92,14 @@ export function setLoginTrigger(fn: () => void): void {
   loginTrigger = fn;
 }
 
-/** Déclenche une (re)connexion via Keycloak (utilisé sur 401). */
+export function setLogoutTrigger(fn: () => void): void {
+  logoutTrigger = fn;
+}
+
 export function requireLogin(): void {
   loginTrigger();
+}
+
+export function requireLogout(): void {
+  logoutTrigger();
 }

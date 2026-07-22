@@ -15,40 +15,20 @@ import type { ActivityTypeOption, LocationType } from "../types/activity";
 import { ActivityDatePicker } from "./activity/ActivityDatePicker";
 import { ActivityTimeSelect } from "./activity/ActivityTimeSelect";
 import { ActivityTypeSelect } from "./activity/ActivityTypeSelect";
+import {
+  FORM_LABEL_CLASS,
+  MAX_TITLE,
+  MAX_DESCRIPTION,
+  MAX_ROOM,
+  todayIso,
+  toBackendTime,
+} from "./activity/activityFormUtils";
+import { OffSiteAddressFields } from "./activity/OffSiteAddressFields";
 
 const inputClass =
   "w-full py-2.5 px-3 border border-gray-200 rounded-xl text-sm bg-white " +
   "focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent " +
   "disabled:opacity-50 disabled:bg-gray-50";
-
-const labelClass = "block text-xs font-semibold text-gray-600 mb-1.5";
-
-const MAX_TITLE = 200;
-const MAX_DESCRIPTION = 5000;
-const MAX_STREET = 255;
-const MAX_COMPLEMENT = 255;
-const MAX_CITY = 120;
-const MAX_ROOM = 255;
-
-function todayIso(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function toBackendTime(value: string): string {
-  if (!value) return value;
-  const parts = value.split(":");
-  if (parts.length >= 2) {
-    const h = parts[0].padStart(2, "0");
-    const min = parts[1].padStart(2, "0");
-    const sec = (parts[2] ?? "0").padStart(2, "0");
-    return `${h}:${min}:${sec}`;
-  }
-  return value;
-}
 
 function emptyForm() {
   return {
@@ -218,6 +198,15 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
 
     if (date < minDate) return "La date ne peut pas être dans le passé.";
 
+    if (date === minDate && startTime) {
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const [h, m] = startTime.split(":").map(Number);
+      if (h * 60 + m <= nowMinutes) {
+        return "Le créneau horaire est déjà passé pour aujourd'hui.";
+      }
+    }
+
     if (carpoolEnabled) {
       if (!carpoolDepartureTime) return "L'heure de départ du covoiturage est obligatoire.";
       const maxP = Number(carpoolMaxPassengers);
@@ -272,6 +261,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
     try {
       setSubmitting(true);
       const created = await createActivity(payload);
+      window.dispatchEvent(new CustomEvent("colife:activity-created", { detail: created }));
       setCreatedActivityTitle(created.title?.trim() || payload.title);
       setCreateSuccess(true);
     } catch (err) {
@@ -389,7 +379,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
                   </div>
 
                   <div>
-                    <label htmlFor="act-title" className={labelClass}>
+                    <label htmlFor="act-title" className={FORM_LABEL_CLASS}>
                       Titre de l&apos;activité *
                     </label>
                     <input
@@ -407,7 +397,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
                   </div>
 
                   <div>
-                    <label htmlFor="act-type" className={labelClass}>
+                    <label htmlFor="act-type" className={FORM_LABEL_CLASS}>
                       Type d&apos;activité *
                     </label>
                     <ActivityTypeSelect
@@ -421,7 +411,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
                   </div>
 
                   <div>
-                    <label htmlFor="act-desc" className={labelClass}>
+                    <label htmlFor="act-desc" className={FORM_LABEL_CLASS}>
                       Description
                     </label>
                     <textarea
@@ -445,7 +435,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
                   </div>
 
                   <div>
-                    <label htmlFor="act-date" className={labelClass}>
+                    <label htmlFor="act-date" className={FORM_LABEL_CLASS}>
                       Date *
                     </label>
                     <ActivityDatePicker
@@ -458,27 +448,21 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label htmlFor="act-start-h" className={labelClass}>
-                        Heure de début *
-                      </label>
+                      <p className={FORM_LABEL_CLASS}>Heure de début *</p>
                       <ActivityTimeSelect
                         idPrefix="act-start"
                         value={startTime}
                         onChange={setStartTime}
                         disabled={submitting}
-                        variant="start"
                       />
                     </div>
                     <div>
-                      <label htmlFor="act-end-h" className={labelClass}>
-                        Heure de fin *
-                      </label>
+                      <p className={FORM_LABEL_CLASS}>Heure de fin *</p>
                       <ActivityTimeSelect
                         idPrefix="act-end"
                         value={endTime}
                         onChange={setEndTime}
                         disabled={submitting}
-                        variant="end"
                       />
                     </div>
                   </div>
@@ -493,7 +477,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
                     <h3 className="font-bold text-gray-900">Capacité</h3>
                   </div>
                   <div>
-                    <label htmlFor="act-cap" className={labelClass}>
+                    <label htmlFor="act-cap" className={FORM_LABEL_CLASS}>
                       Nombre de places *
                     </label>
                     <div className="relative">
@@ -554,7 +538,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
 
                   {locationType === "ON_SITE" ? (
                     <div>
-                      <label htmlFor="act-room" className={labelClass}>
+                      <label htmlFor="act-room" className={FORM_LABEL_CLASS}>
                         Salle *
                       </label>
                       <input
@@ -571,75 +555,19 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
                       />
                     </div>
                   ) : (
-                    <>
-                      <div>
-                        <label htmlFor="act-street" className={labelClass}>
-                          Adresse (rue, n°) *
-                        </label>
-                        <input
-                          id="act-street"
-                          type="text"
-                          required
-                          maxLength={MAX_STREET}
-                          autoComplete="street-address"
-                          className={inputClass}
-                          value={street}
-                          onChange={(e) => setStreet(e.target.value)}
-                          disabled={submitting}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="act-complement" className={labelClass}>
-                          Complément (bâtiment, étage…)
-                        </label>
-                        <input
-                          id="act-complement"
-                          type="text"
-                          maxLength={MAX_COMPLEMENT}
-                          className={inputClass}
-                          value={complement}
-                          onChange={(e) => setComplement(e.target.value)}
-                          disabled={submitting}
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                          <label htmlFor="act-postal" className={labelClass}>
-                            Code postal *
-                          </label>
-                          <input
-                            id="act-postal"
-                            type="text"
-                            required
-                            inputMode="numeric"
-                            maxLength={5}
-                            autoComplete="postal-code"
-                            className={inputClass}
-                            value={postalCode}
-                            onChange={(e) =>
-                              setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5))
-                            }
-                            disabled={submitting}
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="act-city" className={labelClass}>
-                            Ville *
-                          </label>
-                          <input
-                            id="act-city"
-                            type="text"
-                            required
-                            maxLength={MAX_CITY}
-                            autoComplete="address-level2"
-                            className={inputClass}
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                            disabled={submitting}
-                          />
-                        </div>
-                      </div>
-                    </>
+                    <OffSiteAddressFields
+                      idPrefix="act-"
+                      street={street}
+                      complement={complement}
+                      postalCode={postalCode}
+                      city={city}
+                      disabled={submitting}
+                      inputClass={inputClass}
+                      onStreetChange={setStreet}
+                      onComplementChange={setComplement}
+                      onPostalCodeChange={setPostalCode}
+                      onCityChange={setCity}
+                    />
                   )}
                 </section>
 
@@ -682,21 +610,16 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
                         </p>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div>
-                            <label htmlFor="carpool-departure" className={labelClass}>
-                              Heure de départ *
-                            </label>
-                            <input
-                              id="carpool-departure"
-                              type="time"
-                              required
-                              className={inputClass}
+                            <p className={FORM_LABEL_CLASS}>Heure de départ *</p>
+                            <ActivityTimeSelect
+                              idPrefix="carpool-departure"
                               value={carpoolDepartureTime}
-                              onChange={(e) => setCarpoolDepartureTime(e.target.value)}
+                              onChange={setCarpoolDepartureTime}
                               disabled={submitting}
                             />
                           </div>
                           <div>
-                            <label htmlFor="carpool-seats" className={labelClass}>
+                            <label htmlFor="carpool-seats" className={FORM_LABEL_CLASS}>
                               Places passagers disponibles *
                             </label>
                             <div className="relative">
