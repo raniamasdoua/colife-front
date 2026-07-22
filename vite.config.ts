@@ -3,17 +3,17 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-export default defineConfig(({ mode: _mode }) => ({
+export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
     target: "esnext",
     cssCodeSplit: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-auth": ["react-oidc-context", "oidc-client-ts"],
-          "vendor-icons": ["lucide-react"],
+        manualChunks: (id) => {
+          if (id.includes("react-oidc-context") || id.includes("oidc-client-ts")) return "vendor-auth";
+          if (id.includes("lucide-react")) return "vendor-icons";
+          if (id.includes("react") || id.includes("react-dom") || id.includes("react-router-dom")) return "vendor-react";
         },
       },
     },
