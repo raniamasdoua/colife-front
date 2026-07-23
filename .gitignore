@@ -24,3 +24,12 @@ dist-ssr
 *.sw?
 
 .env
+
+# Test coverage
+coverage
+
+# SonarQube
+.scannerwork
+
+# Rapport PFE (local uniquement)
+rapport/

@@ -38,20 +38,14 @@ import {
   formatActivityLocationMeta,
   formatActivityLocationShort,
 } from "../../utils/activityLocationDisplay";
+import { ActivityStatusBadge, isPastActivity } from "../../components/admin/ActivityStatusBadge";
+import { formatTime } from "../../utils/activityFormatters";
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
-}
-
-function formatTime(hms: string): string {
-  return hms.slice(0, 5);
-}
-
-function isPast(activity: ActivityResponse): boolean {
-  return isActivityNoLongerEditable(activity, new Date());
 }
 
 type PeriodFilter = "all" | "upcoming" | "past";
@@ -211,39 +205,6 @@ function CapacityBar({
         {participantCount}/{capacity}
       </span>
     </div>
-  );
-}
-
-/* ── Badge statut ─────────────────────────────────────────────────────────── */
-
-function StatusBadge({ activity }: { activity: ActivityResponse }) {
-  if (activity.deleted) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-600">
-        <Trash className="h-3 w-3" />
-        Supprimée
-      </span>
-    );
-  }
-  const past = isPast(activity);
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-        past ? "bg-slate-100 text-slate-500" : "bg-emerald-100 text-emerald-700"
-      }`}
-    >
-      {past ? (
-        <>
-          <CalendarX className="h-3 w-3" />
-          Passée
-        </>
-      ) : (
-        <>
-          <CalendarCheck className="h-3 w-3" />
-          À venir
-        </>
-      )}
-    </span>
   );
 }
 
@@ -650,7 +611,7 @@ export function AdminActivitiesPage() {
                   <tbody className="divide-y divide-slate-50">
                     {filtered.map((activity) => {
                       const typeConfig = getTypeConfig(activity.activityType.name);
-                      const past = isPast(activity);
+                      const past = isPastActivity(activity);
                       const isDeleted = !!activity.deleted;
                       const canAct = !isDeleted && !past;
 
@@ -755,7 +716,7 @@ export function AdminActivitiesPage() {
 
                           {/* Statut */}
                           <td className="px-5 py-3.5">
-                            <StatusBadge activity={activity} />
+                            <ActivityStatusBadge activity={activity} />
                           </td>
 
                           {/* Actions */}
@@ -821,7 +782,7 @@ export function AdminActivitiesPage() {
               <ul className="lg:hidden divide-y divide-slate-50">
                 {filtered.map((activity) => {
                   const typeConfig = getTypeConfig(activity.activityType.name);
-                  const past = isPast(activity);
+                  const past = isPastActivity(activity);
                   const isDeleted = !!activity.deleted;
                   const canAct = !isDeleted && !past;
 
@@ -854,7 +815,7 @@ export function AdminActivitiesPage() {
                             >
                               {activity.activityType.name}
                             </span>
-                            <StatusBadge activity={activity} />
+                            <ActivityStatusBadge activity={activity} />
                             <ActivityMetaBadges activity={activity} />
                           </div>
                         </div>

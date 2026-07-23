@@ -1,73 +1,101 @@
-# React + TypeScript + Vite
+# CoLife — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interface web de l'application CoLife (gestion d'activités et covoiturage en entreprise).
 
-Currently, two official plugins are available:
+## Stack technique
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Couche | Technologie |
+|---|---|
+| Langage | TypeScript |
+| Framework | React 19 |
+| Build | Vite |
+| Style | Tailwind CSS 4 |
+| Authentification | OIDC (Keycloak via oidc-client-ts) |
+| Tests | Vitest, React Testing Library, MSW |
+| Couverture | V8 / LCOV |
+| Qualité | SonarQube |
+| Conteneurisation | Docker, Nginx |
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Manuel de déploiement
 
-## Expanding the ESLint configuration
+### Prérequis
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Node.js 20+ et npm
+- Infrastructure backend démarrée (`docker compose up -d` dans le dépôt `API_CoLife`)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 1. Variables d'environnement
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cp .env.exemple .env
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+| Variable | Rôle |
+|---|---|
+| `VITE_API_BASE_URL` | URL de l'API backend |
+| `VITE_KEYCLOAK_AUTHORITY` | URL du realm Keycloak |
+| `VITE_KEYCLOAK_CLIENT_ID` | Identifiant du client OIDC SPA |
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### 2. Lancer en développement
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install && npm run dev
+```
+
+L'application est disponible sur `http://localhost:5173`.
+
+### 3. Build de production (Docker)
+
+```bash
+docker build -t colife-front .
+docker run -p 80:80 colife-front
+```
+
+L'application est servie par Nginx sur le port 80.
+
+---
+
+## Manuel de test et qualité
+
+### Exécuter les tests
+
+```bash
+npm run test
+```
+
+### Exécuter les tests avec couverture
+
+```bash
+npm run test -- --coverage
+```
+
+Génère le rapport HTML dans `coverage/index.html`.
+
+### Analyse SonarQube
+
+```bash
+npm run sonar
+```
+
+Résultats disponibles sur `http://localhost:9000`.
+
+---
+
+## Structure du projet
+
+```
+src/
+├── components/        # Composants React réutilisables
+│   ├── admin/         # Composants spécifiques à l'administration
+│   ├── activity/      # Composants liés aux activités
+│   ├── home/          # Composants de la page d'accueil
+│   ├── layout/        # Mise en page (navigation, sidebar)
+│   └── ui/            # Composants génériques (modales, badges)
+├── pages/             # Pages de l'application
+│   ├── admin/         # Pages administration
+│   └── *.tsx          # Pages collaborateur
+├── services/          # Appels API
+├── utils/             # Utilitaires (formatters, helpers)
+└── __tests__/         # Tests unitaires et de composants
 ```

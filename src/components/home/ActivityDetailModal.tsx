@@ -41,32 +41,8 @@ import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
 import { shouldOfferCarpoolAfterSubscribe } from "../../utils/subscribeMessages";
 import { MessageModal } from "../ui/MessageModal";
 import { PostSubscribeCarpoolModal } from "./PostSubscribeCarpoolModal";
-
-/* ── Helpers ─────────────────────────────────────────────────────────────── */
-
-function formatDateLong(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function formatTime(t: string): string {
-  return t.slice(0, 5);
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
+import { ActivityTimeSelect } from "../activity/ActivityTimeSelect";
+import { formatDateLong, formatTime, toActivityInitials } from "../../utils/activityFormatters";
 
 const inputClass =
   "w-full py-2 px-3 border border-gray-200 rounded-xl text-sm bg-white " +
@@ -531,18 +507,18 @@ export function ActivityDetailModal({
                         <div className="rounded-xl border border-violet-200 bg-white/70 p-3 space-y-3">
                           <div className="grid grid-cols-2 gap-3">
                             <div>
-                              <label className={labelClass}>Heure de départ *</label>
-                              <input
-                                type="time"
-                                className={inputClass}
+                              <p className={labelClass}>Heure de départ *</p>
+                              <ActivityTimeSelect
+                                idPrefix="detail-carpool-edit-dep"
                                 value={carpoolEditDeparture}
-                                onChange={(e) => setCarpoolEditDeparture(e.target.value)}
+                                onChange={setCarpoolEditDeparture}
                                 disabled={carpoolEditLoading}
                               />
                             </div>
                             <div>
-                              <label className={labelClass}>Places passagers *</label>
+                              <label htmlFor="detail-carpool-edit-seats" className={labelClass}>Places passagers *</label>
                               <input
+                                id="detail-carpool-edit-seats"
                                 type="number"
                                 min={c.passengerCount || 1}
                                 inputMode="numeric"
@@ -687,18 +663,18 @@ export function ActivityDetailModal({
                         <p className="text-xs font-semibold text-violet-700">Votre proposition</p>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className={labelClass}>Heure de départ *</label>
-                            <input
-                              type="time"
-                              className={inputClass}
+                            <p className={labelClass}>Heure de départ *</p>
+                            <ActivityTimeSelect
+                              idPrefix="detail-carpool-new-dep"
                               value={cpDepartureTime}
-                              onChange={(e) => setCpDepartureTime(e.target.value)}
+                              onChange={setCpDepartureTime}
                               disabled={carpoolActionLoading}
                             />
                           </div>
                           <div>
-                            <label className={labelClass}>Places passagers *</label>
+                            <label htmlFor="detail-carpool-new-seats" className={labelClass}>Places passagers *</label>
                             <input
+                              id="detail-carpool-new-seats"
                               type="number"
                               min={1}
                               inputMode="numeric"
@@ -781,7 +757,7 @@ export function ActivityDetailModal({
                 {isOrganizer ? (
                   <Star className="h-5 w-5" />
                 ) : (
-                  <span className="text-xs font-bold">{getInitials(localActivity.organizerName)}</span>
+                  <span className="text-xs font-bold">{toActivityInitials(localActivity.organizerName)}</span>
                 )}
               </div>
               <div className="min-w-0">
@@ -829,7 +805,7 @@ export function ActivityDetailModal({
             ) : (
               <div className="flex items-center gap-2">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-[11px] font-bold text-white">
-                  {getInitials(localActivity.organizerName)}
+                  {toActivityInitials(localActivity.organizerName)}
                 </span>
                 <div className="flex flex-col">
                   <span className="text-[11px] text-slate-400">Organisé par</span>
