@@ -1,3 +1,20 @@
+## v0.4.0 - 2026-07-23
+
+### 🚀 Features
+- feat(ui) : chips de filtre, scrollbar, proposition de covoiturage et chargement des types
+
+### 🐛 Fixes
+- fix(build) : corriger la syntaxe du fichier de config
+- fix(build) : compatibilité Vite 8
+- fix(build) : supprimer l'option esbuild incompatible avec Vite 8
+- fix(tests) : supprimer le test des catégories supprimées
+- fix : corriger le flux OIDC, les validations métier et l'affichage de la page d'accueil
+
+### 🔧 Others
+- ci : ajouter les tests dans la pipeline et préparer la containerisation
+
+---
+
 ## v0.3.0 - 2026-06-28
 
 ### 🚀 Features
