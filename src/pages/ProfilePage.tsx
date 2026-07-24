@@ -24,7 +24,6 @@ import { keycloakAccountUrl } from "../auth/oidcConfig";
 import type { UserProfile } from "../types/auth";
 import { CollaboratorLayout } from "../components/layout/CollaboratorLayout";
 
-// ── Inline Toggle (Switch) ────────────────────────────────────────────────────
 function Toggle({
   checked,
   onChange,
@@ -51,7 +50,6 @@ function Toggle({
   );
 }
 
-// ── Toast Notification ────────────────────────────────────────────────────────
 function Toast({
   message,
   type,
@@ -70,7 +68,6 @@ function Toast({
   );
 }
 
-// ── Modal overlay ─────────────────────────────────────────────────────────────
 function Modal({
   open,
   onClose,
@@ -97,7 +94,6 @@ function Modal({
   );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("fr-FR", {
     month: "long",
@@ -106,11 +102,9 @@ function formatDate(iso: string): string {
 }
 
 type ProfilePageProps = {
-  /** Affichage dans le shell admin (sans fond plein écran ni bandeau dupliqué) */
   adminShell?: boolean;
 };
 
-// ── ProfilePage ───────────────────────────────────────────────────────────────
 export function ProfilePage({ adminShell = false }: ProfilePageProps) {
   const auth = useAuth();
 
@@ -160,7 +154,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     []
   );
 
-  // ── Fetch profile on mount ──────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -185,7 +178,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     };
   }, []);
 
-  // ── Fetch activity stats ────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     setStatsLoading(true);
@@ -212,7 +204,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     return () => { cancelled = true; };
   }, []);
 
-  // ── Save profile ────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!profile) return;
     if (phoneError) return;
@@ -243,14 +234,10 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     setIsEditing(false);
   };
 
-  // ── Change password ─────────────────────────────────────────────────────────
-  // La gestion du mot de passe est déléguée à Keycloak (migration OIDC) : on
-  // ouvre la console « Mon compte » dans un nouvel onglet.
   const handleChangePassword = () => {
     window.open(keycloakAccountUrl(), "_blank", "noopener,noreferrer");
   };
 
-  // ── Delete account ──────────────────────────────────────────────────────────
   const handleDeleteAccount = () => {
     if (deleteConfirmation !== "SUPPRIMER") {
       showToast("Veuillez taper SUPPRIMER pour confirmer", "error");
@@ -261,13 +248,10 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     handleLogout();
   };
 
-  // ── Logout ──────────────────────────────────────────────────────────────────
   const handleLogout = () => {
-    // Déconnexion Keycloak (révoque la session et nettoie les tokens locaux).
     void auth.signoutRedirect();
   };
 
-  // ── Render states ───────────────────────────────────────────────────────────
   if (isLoading) {
     const spinner = (
       <div className="flex items-center justify-center py-20">

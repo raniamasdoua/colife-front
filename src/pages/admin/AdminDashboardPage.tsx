@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { CalendarDays, CalendarCheck, Tag, Users } from "lucide-react";
+﻿import { useEffect, useState } from "react";
+import { CalendarDays, CalendarCheck, Tag, Users, UserCheck, Car } from "lucide-react";
 
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import { COLIFE_SECTION_LABEL } from "../../components/admin/adminTheme";
@@ -77,6 +77,26 @@ export function AdminDashboardPage() {
                 icon={Users}
                 color="pink"
                 trend="Inscrits"
+              />
+            </div>
+          </section>
+
+          <section>
+            <h2 className={`${COLIFE_SECTION_LABEL} mb-3`}>Engagement</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <StatCard
+                label="Taux de participation"
+                value={`${stats?.participationRate ?? 0} %`}
+                icon={UserCheck}
+                color="emerald"
+                trend="Places occupées / capacité totale"
+              />
+              <StatCard
+                label="Taux de covoiturage"
+                value={`${stats?.carpoolRate ?? 0} %`}
+                icon={Car}
+                color="blue"
+                trend="Activités hors-site avec covoiturage"
               />
             </div>
           </section>

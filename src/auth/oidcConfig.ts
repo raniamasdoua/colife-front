@@ -12,10 +12,6 @@ const scope = "openid profile email";
 const stateStore = new WebStorageStateStore({ store: window.localStorage });
 const userStore = new WebStorageStateStore({ store: window.localStorage });
 
-/**
- * Configuration du client OIDC (Keycloak) — flow Authorization Code + PKCE.
- * Les tokens (access + refresh) sont gérés et rafraîchis automatiquement par la lib.
- */
 export const oidcConfig: AuthProviderProps = {
   authority,
   client_id: clientId,
@@ -31,15 +27,6 @@ export const oidcConfig: AuthProviderProps = {
   },
 };
 
-/**
- * Redirige directement vers le FORMULAIRE D'INSCRIPTION de Keycloak.
- *
- * Keycloak n'expose pas l'inscription via un simple paramètre sur l'endpoint
- * d'autorisation ; on génère donc un vrai signin request (state + PKCE, stockés
- * dans le même {@link stateStore} que l'AuthProvider) puis on bascule l'URL de
- * `/protocol/openid-connect/auth` vers `/protocol/openid-connect/registrations`.
- * Au retour, react-oidc-context retrouve le state et échange le code normalement.
- */
 const registerClient = new OidcClient({
   authority,
   client_id: clientId,
@@ -48,14 +35,6 @@ const registerClient = new OidcClient({
   stateStore,
 });
 
-/**
- * URL de la console « Mon compte » de Keycloak.
- *
- * La gestion du mot de passe (et plus largement de l'identité) est déléguée à
- * Keycloak depuis la migration OIDC : le backend n'expose plus ce flux. L'écran
- * profil redirige donc l'utilisateur vers cette console. L'authority est de la
- * forme `https://host/realms/{realm}` → la console est servie sous `/account`.
- */
 export function keycloakAccountUrl(): string {
   return `${String(authority).replace(/\/$/, "")}/account/`;
 }
@@ -70,11 +49,6 @@ export async function registerRedirect(): Promise<void> {
   );
   window.location.assign(url);
 }
-
-/* ── Pont OIDC ↔ couche fetch (modules non-React) ────────────────────────────
- * api.ts n'est pas un composant React : il ne peut pas utiliser useAuth().
- * Le composant <AuthBridge/> (dans App.tsx) pousse ici le token courant et les
- * déclencheurs, que le wrapper fetch consomme. */
 
 let currentAccessToken: string | null = null;
 let loginTrigger: () => void = () => {};
