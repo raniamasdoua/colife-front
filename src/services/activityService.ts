@@ -7,6 +7,8 @@ import type {
   CarpoolDetail,
   CarpoolRequest,
   CreateActivityPayload,
+  MaterialRequest,
+  MaterialResponse,
   UpdateActivityPayload,
   UserActivities,
 } from "../types/activity";
@@ -138,6 +140,41 @@ export async function cancelCarpoolByDriver(
   carpoolId: number
 ): Promise<void> {
   return apiFetch<void>(`/activities/${activityId}/carpools/${carpoolId}`, {
+    method: "DELETE",
+  });
+}
+
+/** GET /activities/{id}/materials — lister le matériel proposé pour une activité */
+export async function getActivityMaterials(activityId: number): Promise<MaterialResponse[]> {
+  return apiFetch<MaterialResponse[]>(`/activities/${activityId}/materials`);
+}
+
+/** POST /activities/{id}/materials — proposer du matériel */
+export async function proposeMaterial(
+  activityId: number,
+  payload: MaterialRequest
+): Promise<MaterialResponse> {
+  return apiFetch<MaterialResponse>(`/activities/${activityId}/materials`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** PUT /activities/{id}/materials/{materialId} — modifier sa proposition de matériel */
+export async function updateMaterial(
+  activityId: number,
+  materialId: number,
+  payload: MaterialRequest
+): Promise<MaterialResponse> {
+  return apiFetch<MaterialResponse>(`/activities/${activityId}/materials/${materialId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** DELETE /activities/{id}/materials/{materialId} — retirer sa proposition de matériel */
+export async function removeMaterial(activityId: number, materialId: number): Promise<void> {
+  return apiFetch<void>(`/activities/${activityId}/materials/${materialId}`, {
     method: "DELETE",
   });
 }
