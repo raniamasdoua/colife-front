@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
-import { Home, CalendarDays, Compass, User, Shield } from "lucide-react";
+import { Home, CalendarDays, Compass, Bell, User, Shield } from "lucide-react";
 import { SidebarNavList } from "./SidebarNavList";
 
 const NAV_ITEMS = [
   { to: "/home", icon: Home, label: "Accueil" },
   { to: "/planning", icon: CalendarDays, label: "Planning" },
   { to: "/explore", icon: Compass, label: "Explorer" },
+  { to: "/notifications", icon: Bell, label: "Notifications" },
   { to: "/profile", icon: User, label: "Profil" },
 ];
 

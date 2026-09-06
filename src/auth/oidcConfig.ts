@@ -21,7 +21,11 @@ export const oidcConfig: AuthProviderProps = {
   userStore,
   stateStore,
   monitorSession: false,
-  automaticSilentRenew: false,
+  // Renouvellement automatique du token d'accès (900s de durée de vie côté Keycloak)
+  // via le refresh token, en arrière-plan, avant son expiration — sans quoi la session
+  // applicative meurt après 15 min alors que la session Keycloak (SSO) reste active
+  // jusqu'à 30 min/10h (cf. AuthBridge dans App.tsx pour la gestion de l'échec).
+  automaticSilentRenew: true,
   onSigninCallback: () => {
     window.history.replaceState({}, document.title, window.location.pathname);
   },
@@ -35,8 +39,22 @@ const registerClient = new OidcClient({
   stateStore,
 });
 
-export function keycloakAccountUrl(): string {
-  return `${String(authority).replace(/\/$/, "")}/account/`;
+/**
+ * Déclenche directement le formulaire Keycloak de changement de mot de passe
+ * (Application Initiated Action `kc_action=UPDATE_PASSWORD`), sans passer par
+ * la console « Mon compte » (qui exposerait tout un tas d'autres réglages).
+ *
+ * La gestion du mot de passe est déléguée à Keycloak depuis la migration OIDC :
+ * le backend n'expose plus ce flux. Le flow réutilise le client OIDC de
+ * l'application (mêmes state/PKCE store que l'AuthProvider) : une fois le mot
+ * de passe mis à jour, Keycloak redirige directement vers l'application,
+ * plutôt que de laisser l'utilisateur dans la console Keycloak.
+ */
+export async function changePasswordRedirect(): Promise<void> {
+  const request = await registerClient.createSigninRequest({ request_type: "si:r" });
+  const url = new URL(request.url);
+  url.searchParams.set("kc_action", "UPDATE_PASSWORD");
+  window.location.assign(url.toString());
 }
 
 export async function registerRedirect(): Promise<void> {

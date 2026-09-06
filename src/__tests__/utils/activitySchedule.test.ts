@@ -17,6 +17,7 @@ function makeActivity(date: string, startTime: string): ActivityResponse {
     organizerName: "Organisateur",
     locationType: "ON_SITE",
     carpool: null,
+    materials: [],
   };
 }
 

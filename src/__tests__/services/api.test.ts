@@ -93,10 +93,19 @@ describe("apiFetch", () => {
     expect((err as ApiRequestError).status).toBe(500);
   });
 
-  it("appelle requireLogout et lance ApiRequestError sur une réponse 401", async () => {
+  it("appelle requireLogout et lance ApiRequestError sur une réponse 401 sans token", async () => {
     server.use(
       http.get(`${BASE}/protected`, () => new HttpResponse(null, { status: 401 }))
     );
+    await apiFetch("/protected").catch(() => {});
+    expect(vi.mocked(requireLogout)).toHaveBeenCalledTimes(1);
+  });
+
+  it("appelle aussi requireLogout sur une réponse 401 alors qu'un token était présent", async () => {
+    server.use(
+      http.get(`${BASE}/protected`, () => new HttpResponse(null, { status: 401 }))
+    );
+    vi.mocked(getAccessToken).mockReturnValue("stale-token");
     await apiFetch("/protected").catch(() => {});
     expect(vi.mocked(requireLogout)).toHaveBeenCalledTimes(1);
   });

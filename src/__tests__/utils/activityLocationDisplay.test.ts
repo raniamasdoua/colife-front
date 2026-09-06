@@ -30,6 +30,7 @@ function makeActivity(
     organizerName: "Organisateur",
     locationType,
     carpool: null,
+    materials: [],
   };
 }
 

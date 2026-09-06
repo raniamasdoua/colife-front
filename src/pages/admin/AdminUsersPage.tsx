@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  CalendarClock,
   CalendarDays,
   ChevronDown,
   Filter,
@@ -15,10 +16,15 @@ import {
   X,
 } from "lucide-react";
 
+import { AdminActivityDetailModal } from "../../components/admin/AdminActivityDetailModal";
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import { COLIFE_CARD, COLIFE_SECTION_LABEL } from "../../components/admin/adminTheme";
+import { EditActivityModal } from "../../components/EditActivityModal";
+import { MessageModal } from "../../components/ui/MessageModal";
 import { ApiRequestError } from "../../services/api";
+import { deleteActivity, getUserActivities } from "../../services/activityService";
 import { getAllUsers } from "../../services/userService";
+import type { ActivityResponse, UserActivities } from "../../types/activity";
 import type { UserProfile } from "../../types/auth";
 import { getInitials } from "../../utils/userDisplay";
 
@@ -168,6 +174,38 @@ function RoleSelect({
   );
 }
 
+/* ── Liste d'activités (mini) ─────────────────────────────────────────────── */
+
+function ActivityMiniList({
+  activities,
+  onSelect,
+}: {
+  activities: ActivityResponse[];
+  onSelect: (a: ActivityResponse) => void;
+}) {
+  if (activities.length === 0) {
+    return <p className="text-xs text-slate-400 italic px-1">Aucune</p>;
+  }
+  return (
+    <ul className="space-y-1.5">
+      {activities.map((a) => (
+        <li key={a.id}>
+          <button
+            type="button"
+            onClick={() => onSelect(a)}
+            className="w-full flex items-center justify-between gap-2 rounded-lg bg-slate-50 hover:bg-purple-50 px-3 py-2 text-left transition-colors"
+          >
+            <span className="text-sm text-slate-800 font-medium truncate">{a.title}</span>
+            <span className="text-xs text-slate-500 shrink-0">
+              {formatDate(a.date)} · {a.startTime.slice(0, 5)}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /* ── Modal détail utilisateur ─────────────────────────────────────────────── */
 
 function UserDetailModal({
@@ -179,11 +217,117 @@ function UserDetailModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const [activities, setActivities] = useState<UserActivities | null>(null);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [activitiesError, setActivitiesError] = useState("");
+
+  useEffect(() => {
+    if (!open || !user) return;
+    let cancelled = false;
+    setActivities(null);
+    setActivitiesError("");
+    setActivitiesLoading(true);
+    getUserActivities(user.id)
+      .then((data) => {
+        if (!cancelled) setActivities(data);
+      })
+      .catch((e) => {
+        if (!cancelled)
+          setActivitiesError(
+            e instanceof ApiRequestError ? e.message : "Impossible de charger les activités."
+          );
+      })
+      .finally(() => {
+        if (!cancelled) setActivitiesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user]);
+
+  /* ── Détail / édition / suppression d'une activité liée ── */
+  const [activityDetail, setActivityDetail] = useState<ActivityResponse | null>(null);
+  const [activityDetailOpen, setActivityDetailOpen] = useState(false);
+  const [activityEditTarget, setActivityEditTarget] = useState<ActivityResponse | null>(null);
+  const [activityEditOpen, setActivityEditOpen] = useState(false);
+  const [activityDeleteTarget, setActivityDeleteTarget] = useState<ActivityResponse | null>(null);
+  const [activityDeleteLoading, setActivityDeleteLoading] = useState(false);
+  const [activityMessage, setActivityMessage] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    variant?: "default" | "success";
+  }>({ open: false, title: "", message: "" });
+
+  const openActivityDetail = (a: ActivityResponse) => {
+    setActivityDetail(a);
+    setActivityDetailOpen(true);
+  };
+
+  const openActivityEdit = (a: ActivityResponse) => {
+    setActivityEditTarget(a);
+    setActivityEditOpen(true);
+  };
+
+  const updateActivityInLists = (updated: ActivityResponse) => {
+    setActivities((prev) =>
+      prev
+        ? {
+            organized: prev.organized.map((a) => (a.id === updated.id ? updated : a)),
+            registered: prev.registered.map((a) => (a.id === updated.id ? updated : a)),
+          }
+        : prev
+    );
+  };
+
+  const removeActivityFromLists = (id: number) => {
+    setActivities((prev) =>
+      prev
+        ? {
+            organized: prev.organized.filter((a) => a.id !== id),
+            registered: prev.registered.filter((a) => a.id !== id),
+          }
+        : prev
+    );
+  };
+
+  const handleActivityEditSuccess = (updated: ActivityResponse) => {
+    updateActivityInLists(updated);
+    setActivityMessage({
+      open: true,
+      title: "Activité modifiée",
+      message: `« ${updated.title} » a été mise à jour.`,
+      variant: "success",
+    });
+  };
+
+  const confirmActivityDelete = async () => {
+    if (!activityDeleteTarget) return;
+    setActivityDeleteLoading(true);
+    try {
+      await deleteActivity(activityDeleteTarget.id);
+      removeActivityFromLists(activityDeleteTarget.id);
+      setActivityDeleteTarget(null);
+      setActivityMessage({
+        open: true,
+        title: "Activité supprimée",
+        message: "L'activité a été supprimée.",
+        variant: "success",
+      });
+    } catch (e) {
+      const msg =
+        e instanceof ApiRequestError ? e.message : "Impossible de supprimer cette activité.";
+      setActivityMessage({ open: true, title: "Suppression impossible", message: msg });
+    } finally {
+      setActivityDeleteLoading(false);
+    }
+  };
+
   if (!open || !user) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[90] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -193,7 +337,9 @@ function UserDetailModal({
         aria-label="Fermer"
         onClick={onClose}
       />
-      <div className={`relative z-10 w-full max-w-md ${COLIFE_CARD} p-6 shadow-2xl`}>
+      <div
+        className={`relative z-10 w-full max-w-md ${COLIFE_CARD} p-6 shadow-2xl max-h-[85vh] overflow-y-auto`}
+      >
         {/* En-tête */}
         <div className="flex items-start justify-between gap-3 mb-5">
           <div className="flex items-center gap-3">
@@ -271,7 +417,130 @@ function UserDetailModal({
             </div>
           </div>
         </dl>
+
+        {/* Activités liées */}
+        <div className="mt-5 pt-5 border-t border-slate-100">
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarClock className="h-4 w-4 text-slate-400" />
+            <h3 className={COLIFE_SECTION_LABEL}>Activités</h3>
+          </div>
+
+          {activitiesLoading ? (
+            <div className="flex items-center gap-2 text-sm text-slate-400 py-3">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Chargement…
+            </div>
+          ) : activitiesError ? (
+            <p className="text-sm text-red-600">{activitiesError}</p>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 mb-1.5">
+                  Organisées ({activities?.organized.length ?? 0})
+                </p>
+                <ActivityMiniList
+                  activities={activities?.organized ?? []}
+                  onSelect={openActivityDetail}
+                />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 mb-1.5">
+                  Inscriptions ({activities?.registered.length ?? 0})
+                </p>
+                <ActivityMiniList
+                  activities={activities?.registered ?? []}
+                  onSelect={openActivityDetail}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* ── Détail d'une activité liée ── */}
+      <AdminActivityDetailModal
+        activity={activityDetail}
+        open={activityDetailOpen}
+        onClose={() => {
+          setActivityDetailOpen(false);
+          setActivityDetail(null);
+        }}
+        onEdit={openActivityEdit}
+        onDelete={setActivityDeleteTarget}
+      />
+
+      {/* ── Édition d'une activité liée ── */}
+      <EditActivityModal
+        activity={activityEditTarget}
+        open={activityEditOpen}
+        onOpenChange={(o) => {
+          setActivityEditOpen(o);
+          if (!o) setActivityEditTarget(null);
+        }}
+        onSuccess={handleActivityEditSuccess}
+        readOnlyCarpool
+      />
+
+      {/* ── Confirmation suppression ── */}
+      {activityDeleteTarget && (
+        <div
+          className="fixed inset-0 z-[210] flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            aria-label="Fermer"
+            onClick={() => !activityDeleteLoading && setActivityDeleteTarget(null)}
+          />
+          <div className={`relative z-10 w-full max-w-sm ${COLIFE_CARD} p-5 shadow-2xl`}>
+            <h2 className="text-lg font-bold text-slate-900">Supprimer cette activité ?</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              <span className="font-semibold">« {activityDeleteTarget.title} »</span> sera
+              supprimée et tous les participants seront désinscrits.
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Organisateur : {activityDeleteTarget.organizerName} ·{" "}
+              {formatDate(activityDeleteTarget.date)}
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={activityDeleteLoading}
+                onClick={() => setActivityDeleteTarget(null)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={activityDeleteLoading}
+                onClick={confirmActivityDelete}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-60"
+              >
+                {activityDeleteLoading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Suppression…
+                  </span>
+                ) : (
+                  "Supprimer"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Feedback ── */}
+      <MessageModal
+        open={activityMessage.open}
+        title={activityMessage.title}
+        message={activityMessage.message}
+        variant={activityMessage.variant}
+        onClose={() => setActivityMessage((m) => ({ ...m, open: false }))}
+      />
     </div>
   );
 }

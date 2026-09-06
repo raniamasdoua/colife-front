@@ -5,11 +5,12 @@ import { AuthProvider, useAuth } from "react-oidc-context";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
 import { CreateActivityModalProvider } from "./context/CreateActivityModalContext";
-import { oidcConfig, setAccessToken, setLoginTrigger, setLogoutTrigger } from "./auth/oidcConfig";
+import { oidcConfig, requireLogout, setAccessToken, setLoginTrigger, setLogoutTrigger } from "./auth/oidcConfig";
 
 const HomePage = lazy(() => import("./pages/HomePage").then((m) => ({ default: m.HomePage })));
 const PlanningPage = lazy(() => import("./pages/PlanningPage").then((m) => ({ default: m.PlanningPage })));
 const ExplorePage = lazy(() => import("./pages/ExplorePage").then((m) => ({ default: m.ExplorePage })));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage").then((m) => ({ default: m.NotificationsPage })));
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
 const WelcomePage = lazy(() => import("./pages/WelcomePage").then((m) => ({ default: m.WelcomePage })));
 const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage").then((m) => ({ default: m.AdminDashboardPage })));
@@ -36,6 +37,18 @@ function AuthBridge() {
       void auth.removeUser();
     });
   }, [auth]);
+
+  // Le renouvellement silencieux (automaticSilentRenew) échoue quand le refresh token
+  // n'est plus valide (typiquement : session Keycloak déjà expirée côté serveur). Dans
+  // ce cas la session applicative est irrécupérable : on nettoie l'état local pour que
+  // l'utilisateur retombe proprement sur /welcome plutôt que de rester avec un token
+  // mort et des appels API qui échouent en boucle.
+  useEffect(() => {
+    return auth.events.addSilentRenewError((error) => {
+      console.error("Échec du renouvellement de session, déconnexion locale :", error);
+      requireLogout();
+    });
+  }, [auth.events]);
 
   return null;
 }
@@ -111,6 +124,14 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <NotificationsPage />
             </ProtectedRoute>
           }
         />

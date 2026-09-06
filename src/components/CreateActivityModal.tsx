@@ -5,7 +5,10 @@ import {
   CheckCircle2,
   FileText,
   MapPin,
+  Package,
+  Plus,
   Sparkles,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -81,6 +84,8 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
   const [carpoolDepartureTime, setCarpoolDepartureTime] = useState("");
   const [carpoolMaxPassengers, setCarpoolMaxPassengers] = useState("");
 
+  const [materials, setMaterials] = useState<{ description: string; quantity: string }[]>([]);
+
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [createSuccess, setCreateSuccess] = useState(false);
@@ -107,6 +112,7 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
     setCarpoolEnabled(f.carpoolEnabled);
     setCarpoolDepartureTime(f.carpoolDepartureTime);
     setCarpoolMaxPassengers(f.carpoolMaxPassengers);
+    setMaterials([]);
     setSubmitError(null);
     setCreateSuccess(false);
     setCreatedActivityTitle("");
@@ -215,7 +221,27 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
       }
     }
 
+    for (const m of materials) {
+      if (!m.description.trim()) continue;
+      const qty = Number(m.quantity);
+      if (!m.quantity.trim() || !Number.isFinite(qty) || qty < 1) {
+        return "La quantité de chaque objet proposé doit être supérieure ou égale à 1.";
+      }
+    }
+
     return null;
+  };
+
+  const addMaterialRow = () => {
+    setMaterials((prev) => [...prev, { description: "", quantity: "1" }]);
+  };
+
+  const removeMaterialRow = (index: number) => {
+    setMaterials((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateMaterialRow = (index: number, field: "description" | "quantity", value: string) => {
+    setMaterials((prev) => prev.map((m, i) => (i === index ? { ...m, [field]: value } : m)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -256,6 +282,9 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
             maxPassengers: Number(carpoolMaxPassengers),
           }
         : null,
+      materials: materials
+        .filter((m) => m.description.trim().length > 0)
+        .map((m) => ({ description: m.description.trim(), quantity: Number(m.quantity) })),
     };
 
     try {
@@ -654,6 +683,75 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
                     )}
                   </section>
                 ) : null}
+
+                {/* Matériel — objets à apporter, quelle que soit la localisation */}
+                <section className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-gray-500 to-gray-700">
+                        <Package className="h-4 w-4 text-white" aria-hidden />
+                      </div>
+                      <h3 className="font-bold text-gray-900">Matériel</h3>
+                      <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
+                        Facultatif
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addMaterialRow}
+                      disabled={submitting}
+                      className="flex items-center gap-1 text-xs font-semibold text-purple-600 hover:text-purple-700 disabled:opacity-50"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Ajouter
+                    </button>
+                  </div>
+
+                  {materials.length === 0 ? (
+                    <p className="text-sm text-gray-500">
+                      Proposez un objet que vous apporterez pour cette activité (ex : ballon,
+                      jeu de société…).
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {materials.map((m, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <div className="min-w-0 flex-1">
+                            <input
+                              type="text"
+                              placeholder="Ex : Ballon de foot"
+                              value={m.description}
+                              onChange={(e) => updateMaterialRow(index, "description", e.target.value)}
+                              disabled={submitting}
+                              className={inputClass}
+                            />
+                          </div>
+                          <div className="w-20 shrink-0">
+                            <input
+                              type="number"
+                              min={1}
+                              inputMode="numeric"
+                              value={m.quantity}
+                              onChange={(e) => updateMaterialRow(index, "quantity", e.target.value)}
+                              disabled={submitting}
+                              className={inputClass}
+                              aria-label="Quantité"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeMaterialRow(index)}
+                            disabled={submitting}
+                            className="shrink-0 p-2 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-50"
+                            aria-label="Retirer cet objet"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
 
                 {submitError ? (
                   <div
