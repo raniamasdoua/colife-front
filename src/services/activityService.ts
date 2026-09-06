@@ -8,6 +8,7 @@ import type {
   CarpoolRequest,
   CreateActivityPayload,
   UpdateActivityPayload,
+  UserActivities,
 } from "../types/activity";
 import { isActivityNoLongerEditable } from "../utils/activitySchedule";
 
@@ -59,6 +60,11 @@ export async function getMyActivities(): Promise<ActivityResponse[]> {
 /** GET /activities/registered — inscriptions où vous n'êtes pas l'organisateur */
 export async function getRegisteredActivities(): Promise<ActivityResponse[]> {
   return apiFetch<ActivityResponse[]>("/activities/registered");
+}
+
+/** GET /activities/user/{userId} — activités organisées et inscriptions d'un utilisateur (admin uniquement) */
+export async function getUserActivities(userId: string): Promise<UserActivities> {
+  return apiFetch<UserActivities>(`/activities/user/${userId}`);
 }
 
 export async function getAvailableActivities(): Promise<ActivityResponse[]> {

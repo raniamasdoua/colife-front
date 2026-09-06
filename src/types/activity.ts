@@ -122,3 +122,8 @@ export interface ActivityResponse {
   carpool: CarpoolResponse | null;
 }
 
+export interface UserActivities {
+  organized: ActivityResponse[];
+  registered: ActivityResponse[];
+}
+
