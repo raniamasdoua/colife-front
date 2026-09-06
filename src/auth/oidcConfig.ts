@@ -49,15 +49,21 @@ const registerClient = new OidcClient({
 });
 
 /**
- * URL de la console « Mon compte » de Keycloak.
+ * Déclenche directement le formulaire Keycloak de changement de mot de passe
+ * (Application Initiated Action `kc_action=UPDATE_PASSWORD`), sans passer par
+ * la console « Mon compte » (qui exposerait tout un tas d'autres réglages).
  *
- * La gestion du mot de passe (et plus largement de l'identité) est déléguée à
- * Keycloak depuis la migration OIDC : le backend n'expose plus ce flux. L'écran
- * profil redirige donc l'utilisateur vers cette console. L'authority est de la
- * forme `https://host/realms/{realm}` → la console est servie sous `/account`.
+ * La gestion du mot de passe est déléguée à Keycloak depuis la migration OIDC :
+ * le backend n'expose plus ce flux. Le flow réutilise le client OIDC de
+ * l'application (mêmes state/PKCE store que l'AuthProvider) : une fois le mot
+ * de passe mis à jour, Keycloak redirige directement vers l'application,
+ * plutôt que de laisser l'utilisateur dans la console Keycloak.
  */
-export function keycloakAccountUrl(): string {
-  return `${String(authority).replace(/\/$/, "")}/account/`;
+export async function changePasswordRedirect(): Promise<void> {
+  const request = await registerClient.createSigninRequest({ request_type: "si:r" });
+  const url = new URL(request.url);
+  url.searchParams.set("kc_action", "UPDATE_PASSWORD");
+  window.location.assign(url.toString());
 }
 
 export async function registerRedirect(): Promise<void> {

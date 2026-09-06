@@ -13,7 +13,7 @@ vi.mock("../../auth/oidcConfig", () => ({
   setLoginTrigger: vi.fn(),
   setLogoutTrigger: vi.fn(),
   requireLogin: vi.fn(),
-  keycloakAccountUrl: vi.fn().mockReturnValue("http://localhost:8081/account"),
+  changePasswordRedirect: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../components/layout/CollaboratorLayout", () => ({
