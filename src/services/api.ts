@@ -44,9 +44,12 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     if (response.status === 401) {
-      if (!getAccessToken()) {
-        requireLogout();
-      }
+      // Un 401 signifie que le token porté (s'il y en a un) n'est plus valide pour
+      // l'API : le garder en mémoire ne sert à rien et ne ferait que répéter l'erreur.
+      // On nettoie la session locale pour que l'utilisateur retombe proprement sur
+      // /welcome (le renouvellement silencieux — cf. AuthBridge — couvre normalement
+      // le cas nominal ; ceci reste un filet de sécurité).
+      requireLogout();
       throw new ApiRequestError("Session expirée ou non authentifié.", 401);
     }
 

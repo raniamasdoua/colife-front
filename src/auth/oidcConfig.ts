@@ -25,7 +25,11 @@ export const oidcConfig: AuthProviderProps = {
   userStore,
   stateStore,
   monitorSession: false,
-  automaticSilentRenew: false,
+  // Renouvellement automatique du token d'accès (900s de durée de vie côté Keycloak)
+  // via le refresh token, en arrière-plan, avant son expiration — sans quoi la session
+  // applicative meurt après 15 min alors que la session Keycloak (SSO) reste active
+  // jusqu'à 30 min/10h (cf. AuthBridge dans App.tsx pour la gestion de l'échec).
+  automaticSilentRenew: true,
   onSigninCallback: () => {
     window.history.replaceState({}, document.title, window.location.pathname);
   },
