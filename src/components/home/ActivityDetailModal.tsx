@@ -40,6 +40,7 @@ import type {
 import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
 import { shouldOfferCarpoolAfterSubscribe } from "../../utils/subscribeMessages";
 import { MessageModal } from "../ui/MessageModal";
+import { MaterialSection } from "./MaterialSection";
 import { PostSubscribeCarpoolModal } from "./PostSubscribeCarpoolModal";
 import { ActivityTimeSelect } from "../activity/ActivityTimeSelect";
 import { formatDateLong, formatTime, toActivityInitials } from "../../utils/activityFormatters";
@@ -864,6 +865,9 @@ export function ActivityDetailModal({
 
             {/* Carpool section */}
             {renderCarpoolSection()}
+
+            {/* Material section */}
+            <MaterialSection activityId={localActivity.id} disabled={activityIsPast} />
 
             {/* Participants */}
             <div>

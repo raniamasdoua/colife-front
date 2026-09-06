@@ -40,6 +40,7 @@ export const FUTURE_ACTIVITY: ActivityResponse = {
   organizerName: "Alice Martin",
   locationType: "ON_SITE",
   carpool: null,
+  materials: [],
 };
 
 export const PAST_ACTIVITY: ActivityResponse = {

@@ -1,8 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { PanelLeftClose, PanelLeft, PlusCircle, Bell } from "lucide-react";
+import { PanelLeftClose, PanelLeft, PlusCircle } from "lucide-react";
 import type { UserProfile } from "../../types/auth";
 import { useCreateActivityModal } from "../../context/CreateActivityModalContext";
 import { getInitials } from "../../utils/userDisplay";
+import { NotificationBell } from "./NotificationBell";
 
 type CollaboratorTopBarProps = {
   user: UserProfile | null;
@@ -62,13 +63,7 @@ export function CollaboratorTopBar({
           <span className="hidden sm:inline" aria-hidden>Créer</span>
         </button>
 
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
-        >
-          <Bell className="h-5 w-5" aria-hidden />
-        </button>
+        <NotificationBell />
 
         <NavLink
           to="/profile"
