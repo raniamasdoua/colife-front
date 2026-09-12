@@ -209,6 +209,8 @@ export function PlanningPage() {
   const [locationFilter, setLocationFilter] = useState<"all" | "on_site" | "off_site">("all");
   const [carpoolFilter, setCarpoolFilter] = useState(false);
   const [typeFilter, setTypeFilter] = useState<Set<string>>(() => new Set());
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
+  const typeDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedActivity, setSelectedActivity] = useState<ActivityResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editActivity, setEditActivity] = useState<ActivityResponse | null>(null);
@@ -284,6 +286,17 @@ export function PlanningPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!typeDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(e.target as Node)) {
+        setTypeDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [typeDropdownOpen]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -626,8 +639,8 @@ export function PlanningPage() {
           <div ref={listRef} className="flex-1 min-w-0 space-y-3">
 
             {/* Sous-filtres */}
-            <div className="rounded-2xl bg-white shadow-md ring-1 ring-slate-200/80 overflow-hidden">
-              <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" aria-hidden />
+            <div className="rounded-2xl bg-white shadow-md ring-1 ring-slate-200/80">
+              <div className="h-1 rounded-t-2xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" aria-hidden />
               <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
                 <div className="flex items-center gap-2">
                   <SlidersHorizontal className="h-3.5 w-3.5 text-purple-500" />
@@ -685,22 +698,76 @@ export function PlanningPage() {
                 {availableTypes.length > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">Type</span>
-                    <div className="relative flex-1 min-w-0">
-                      <select
-                        value={typeFilter.size === 1 ? Array.from(typeFilter)[0] : ""}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setTypeFilter(val ? new Set([val]) : new Set());
-                          setCurrentPage(0);
-                        }}
-                        className={`w-full appearance-none rounded-lg border py-1.5 pl-3 pr-8 text-[11px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${typeFilter.size > 0 ? "border-purple-300 bg-purple-50 text-purple-800" : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white"}`}
+                    <div className="relative flex-1 min-w-0" ref={typeDropdownRef}>
+                      <button
+                        type="button"
+                        aria-haspopup="listbox"
+                        aria-expanded={typeDropdownOpen}
+                        onClick={() => setTypeDropdownOpen((o) => !o)}
+                        className={`flex w-full items-center gap-2 rounded-lg border py-1.5 pl-3 pr-2.5 text-left text-[11px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+                          typeFilter.size > 0
+                            ? "border-purple-300 bg-purple-50 text-purple-800"
+                            : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white"
+                        }`}
                       >
-                        <option value="">Tous les types</option>
-                        {availableTypes.map((typeName) => (
-                          <option key={typeName} value={typeName}>{typeName}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                        <span className="min-w-0 flex-1 truncate">
+                          {typeFilter.size === 1 ? Array.from(typeFilter)[0] : "Tous les types"}
+                        </span>
+                        <ChevronDown
+                          className={`h-3.5 w-3.5 shrink-0 transition ${typeDropdownOpen ? "rotate-180" : ""} ${
+                            typeFilter.size > 0 ? "text-purple-400" : "text-slate-400"
+                          }`}
+                        />
+                      </button>
+
+                      {typeDropdownOpen && (
+                        <div
+                          role="listbox"
+                          aria-label="Type d'activité"
+                          className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-purple-200 bg-white shadow-xl shadow-purple-200/40 ring-1 ring-purple-100"
+                        >
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={typeFilter.size === 0}
+                            onClick={() => {
+                              setTypeFilter(new Set());
+                              setCurrentPage(0);
+                              setTypeDropdownOpen(false);
+                            }}
+                            className={`flex w-full items-center px-4 py-2 text-left text-[11px] font-semibold transition ${
+                              typeFilter.size === 0
+                                ? "bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white"
+                                : "text-slate-700 hover:bg-purple-50 hover:text-purple-800"
+                            }`}
+                          >
+                            Tous les types
+                          </button>
+                          {availableTypes.map((typeName) => {
+                            const isActive = typeFilter.has(typeName);
+                            return (
+                              <button
+                                key={typeName}
+                                type="button"
+                                role="option"
+                                aria-selected={isActive}
+                                onClick={() => {
+                                  setTypeFilter(isActive ? new Set() : new Set([typeName]));
+                                  setCurrentPage(0);
+                                  setTypeDropdownOpen(false);
+                                }}
+                                className={`flex w-full items-center px-4 py-2 text-left text-[11px] font-semibold transition ${
+                                  isActive
+                                    ? "bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white"
+                                    : "text-slate-700 hover:bg-purple-50 hover:text-purple-800"
+                                }`}
+                              >
+                                {typeName}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
