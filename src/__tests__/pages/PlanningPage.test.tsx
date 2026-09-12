@@ -13,11 +13,6 @@ vi.mock("../../auth/oidcConfig", () => ({
   requireLogin: vi.fn(),
 }));
 
-vi.mock("../../components/layout/CollaboratorLayout", () => ({
-  CollaboratorLayout: ({ children }: { children: ReactNode }) => (
-    <div data-testid="layout">{children}</div>
-  ),
-}));
 
 vi.mock("../../context/CreateActivityModalContext", () => ({
   useCreateActivityModal: () => ({ openCreate: vi.fn(), isCreateModalOpen: false }),

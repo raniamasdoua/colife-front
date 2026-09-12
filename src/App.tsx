@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from "react-oidc-context";
 
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
+import { CollaboratorLayout } from "./components/layout/CollaboratorLayout";
+import { AdminLayout } from "./components/admin/AdminLayout";
 import { CreateActivityModalProvider } from "./context/CreateActivityModalContext";
 import { oidcConfig, requireLogout, setAccessToken, setLoginTrigger, setLogoutTrigger } from "./auth/oidcConfig";
 
@@ -96,87 +98,33 @@ function AppContent() {
         <Route path="/activities/new" element={<Navigate to="/home" replace />} />
 
         <Route
-          path="/home"
           element={
             <ProtectedRoute>
-              <HomePage />
+              <CollaboratorLayout />
             </ProtectedRoute>
           }
-        />
-        <Route
-          path="/planning"
-          element={
-            <ProtectedRoute>
-              <PlanningPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/explore"
-          element={
-            <ProtectedRoute>
-              <ExplorePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/notifications"
-          element={
-            <ProtectedRoute>
-              <NotificationsPage />
-            </ProtectedRoute>
-          }
-        />
+        >
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/planning" element={<PlanningPage />} />
+          <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+        </Route>
 
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route
-          path="/admin/dashboard"
           element={
             <AdminRoute>
-              <AdminDashboardPage />
+              <AdminLayout />
             </AdminRoute>
           }
-        />
-        <Route
-          path="/admin/activities"
-          element={
-            <AdminRoute>
-              <AdminActivitiesPage />
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/activity-types"
-          element={
-            <AdminRoute>
-              <AdminActivityTypesPage />
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <AdminRoute>
-              <AdminUsersPage />
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/profile"
-          element={
-            <AdminRoute>
-              <AdminProfilePage />
-            </AdminRoute>
-          }
-        />
+        >
+          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+          <Route path="/admin/activities" element={<AdminActivitiesPage />} />
+          <Route path="/admin/activity-types" element={<AdminActivityTypesPage />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/admin/profile" element={<AdminProfilePage />} />
+        </Route>
 
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>

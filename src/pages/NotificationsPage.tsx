@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bell, CalendarClock, CalendarX, Car, Loader2 } from "lucide-react";
 
-import { CollaboratorLayout } from "../components/layout/CollaboratorLayout";
 import {
   getNotifications,
   markAllNotificationsAsRead,
@@ -73,8 +72,7 @@ export function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <CollaboratorLayout>
-      <div className="space-y-4 pb-6">
+    <div className="space-y-4 pb-6">
         <section>
           <div className="rounded-2xl bg-white shadow-md shadow-slate-200/50 ring-1 ring-slate-200/80 overflow-hidden">
             <div className="h-1.5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600" aria-hidden />
@@ -157,6 +155,5 @@ export function NotificationsPage() {
           )}
         </section>
       </div>
-    </CollaboratorLayout>
   );
 }

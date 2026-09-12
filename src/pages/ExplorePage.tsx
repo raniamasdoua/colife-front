@@ -19,7 +19,6 @@ import {
 import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
 import { PostSubscribeCarpoolModal } from "../components/home/PostSubscribeCarpoolModal";
 import { MessageModal } from "../components/ui/MessageModal";
-import { CollaboratorLayout } from "../components/layout/CollaboratorLayout";
 import { getAvailableActivities, subscribeToActivity, getActivityTypes } from "../services/activityService";
 import { ApiRequestError } from "../services/api";
 import type { ActivityResponse } from "../types/activity";
@@ -403,7 +402,7 @@ export function ExplorePage() {
   };
 
   return (
-    <CollaboratorLayout>
+    <>
       <div className="space-y-4 pb-6">
         {/* ── Hero card ── */}
         <section>
@@ -734,6 +733,6 @@ export function ExplorePage() {
         message={subscribeErrorMessage ?? ""}
         onClose={() => setSubscribeErrorMessage(null)}
       />
-    </CollaboratorLayout>
+    </>
   );
 }

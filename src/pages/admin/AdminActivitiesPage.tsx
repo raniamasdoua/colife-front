@@ -19,7 +19,6 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 
-import { AdminLayout } from "../../components/admin/AdminLayout";
 import { ActivityMetaBadges } from "../../components/admin/ActivityMetaBadges";
 import { EditActivityModal } from "../../components/EditActivityModal";
 import { MessageModal } from "../../components/ui/MessageModal";
@@ -383,10 +382,7 @@ export function AdminActivitiesPage() {
 
   /* ── Rendu ── */
   return (
-    <AdminLayout
-      title="Activités"
-      subtitle="Vue complète et gestion de toutes les activités de la plateforme"
-    >
+    <>
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* ── Stats ── */}
@@ -968,6 +964,6 @@ export function AdminActivitiesPage() {
         variant={messageModal.variant}
         onClose={() => setMessageModal((m) => ({ ...m, open: false }))}
       />
-    </AdminLayout>
+    </>
   );
 }

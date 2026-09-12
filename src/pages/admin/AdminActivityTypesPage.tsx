@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, Tag, Trash2 } from "lucide-react";
 
-import { AdminLayout } from "../../components/admin/AdminLayout";
 import { ActivityTypeFormModal } from "../../components/admin/ActivityTypeFormModal";
 import { COLIFE_CARD, COLIFE_SECTION_LABEL } from "../../components/admin/adminTheme";
 import { MessageModal } from "../../components/ui/MessageModal";
@@ -127,10 +126,7 @@ export function AdminActivityTypesPage() {
   };
 
   return (
-    <AdminLayout
-      title="Types d'activités"
-      subtitle="Créez et gérez les catégories proposées aux collaborateurs"
-    >
+    <>
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -301,6 +297,6 @@ export function AdminActivityTypesPage() {
         variant={messageModal.variant}
         onClose={() => setMessageModal((m) => ({ ...m, open: false }))}
       />
-    </AdminLayout>
+    </>
   );
 }

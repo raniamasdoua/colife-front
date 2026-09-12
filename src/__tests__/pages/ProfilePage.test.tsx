@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import type { ReactNode } from "react";
 
 vi.mock("react-oidc-context", () => ({
   useAuth: vi.fn().mockReturnValue({
@@ -21,12 +20,6 @@ vi.mock("../../auth/oidcConfig", () => ({
   setLogoutTrigger: vi.fn(),
   requireLogin: vi.fn(),
   changePasswordRedirect: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("../../components/layout/CollaboratorLayout", () => ({
-  CollaboratorLayout: ({ children }: { children: ReactNode }) => (
-    <div data-testid="layout">{children}</div>
-  ),
 }));
 
 import { changePasswordRedirect } from "../../auth/oidcConfig";

@@ -3,7 +3,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter } from "react-router-dom";
-import type { ReactNode } from "react";
 import { server } from "../../test/msw/server";
 
 vi.mock("../../auth/oidcConfig", () => ({
@@ -14,12 +13,6 @@ vi.mock("../../auth/oidcConfig", () => ({
   setLogoutTrigger: vi.fn(),
   requireLogin: vi.fn(),
   changePasswordRedirect: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("../../components/layout/CollaboratorLayout", () => ({
-  CollaboratorLayout: ({ children }: { children: ReactNode }) => (
-    <div data-testid="layout">{children}</div>
-  ),
 }));
 
 vi.mock("../../components/home/ActivityDetailModal", () => ({

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { useLocation } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import { CollaboratorSidebar } from "./CollaboratorSidebar";
 import { CollaboratorTopBar } from "./CollaboratorTopBar";
 import { getMe } from "../../services/userService";
@@ -13,11 +13,13 @@ const PAGE_TITLES: Record<string, string> = {
   "/profile": "Mon profil",
 };
 
-type CollaboratorLayoutProps = {
-  children: ReactNode;
-};
-
-export function CollaboratorLayout({ children }: CollaboratorLayoutProps) {
+/**
+ * Layout persistant de l'espace collaborateur (route parente avec <Outlet/>) :
+ * la sidebar/topbar ne se montent qu'une fois pour tout l'espace, seul le
+ * contenu de la page change à la navigation — plus de rechargement du profil
+ * utilisateur ni de remontage de la sidebar à chaque changement de page.
+ */
+export function CollaboratorLayout() {
   const location = useLocation();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -101,7 +103,7 @@ export function CollaboratorLayout({ children }: CollaboratorLayoutProps) {
 
         <main id="main-content" className="min-h-[calc(100vh-4rem)] min-w-0 flex-1 overflow-y-auto bg-gradient-to-b from-slate-50 via-white to-slate-50/90 p-4 md:p-6 lg:p-8">
           <div className="mx-auto w-full max-w-6xl">
-            {children}
+            <Outlet />
           </div>
         </main>
       </div>

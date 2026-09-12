@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 
 type FilterMode = "organized" | "registered" | "all";
-import { CollaboratorLayout } from "../components/layout/CollaboratorLayout";
 import { getMyActivities, getRegisteredActivities } from "../services/activityService";
 import { getTypeConfig } from "../utils/activityDisplay";
 import { useCreateActivityModal } from "../context/CreateActivityModalContext";
@@ -463,7 +462,7 @@ export function PlanningPage() {
   /* ── Rendu ──────────────────────────────────────────────────────────────── */
 
   return (
-    <CollaboratorLayout>
+    <>
       <div className="pb-6 space-y-4">
 
         {/* ── Onglets de filtre (toujours en haut) ──────────────────────── */}
@@ -910,6 +909,6 @@ export function PlanningPage() {
           setSelectedActivity((prev) => (prev?.id === updated.id ? updated : prev));
         }}
       />
-    </CollaboratorLayout>
+    </>
   );
 }
