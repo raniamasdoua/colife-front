@@ -3,8 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminTopBar } from "./AdminTopBar";
-import { getMe } from "../../services/userService";
-import type { UserProfile } from "../../types/auth";
+import { useAdminUser } from "../../context/AdminUserContext";
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/admin/dashboard": {
@@ -39,20 +38,8 @@ const DEFAULT_PAGE = PAGE_TITLES["/admin/dashboard"];
  */
 export function AdminLayout() {
   const location = useLocation();
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const user = useAdminUser();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    getMe()
-      .then((u) => {
-        if (!cancelled) setUser(u);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     const mql = window.matchMedia("(min-width: 768px)");

@@ -26,6 +26,7 @@ import type {
   ActivityTypeOption,
   CarpoolDetail,
   LocationType,
+  UpdateActivityPayload,
 } from "../types/activity";
 import { ActivityDatePicker } from "./activity/ActivityDatePicker";
 import { ActivityTimeSelect } from "./activity/ActivityTimeSelect";
@@ -35,6 +36,7 @@ import {
   MAX_TITLE,
   MAX_DESCRIPTION,
   MAX_ROOM,
+  formatCarpoolDeparture,
   todayIso,
   toBackendTime,
 } from "./activity/activityFormUtils";
@@ -99,12 +101,20 @@ export function EditActivityModal({
   const [carpoolProposeEnabled, setCarpoolProposeEnabled] = useState(false);
   const [carpoolNewDeparture, setCarpoolNewDeparture] = useState("");
   const [carpoolNewMax, setCarpoolNewMax] = useState("1");
+  const [carpoolNewStreet, setCarpoolNewStreet] = useState("");
+  const [carpoolNewComplement, setCarpoolNewComplement] = useState("");
+  const [carpoolNewPostalCode, setCarpoolNewPostalCode] = useState("");
+  const [carpoolNewCity, setCarpoolNewCity] = useState("");
   const [carpoolProposeLoading, setCarpoolProposeLoading] = useState(false);
   const [carpoolProposeError, setCarpoolProposeError] = useState<string | null>(null);
   // Modification (DRIVER → éditer)
   const [carpoolEditing, setCarpoolEditing] = useState(false);
   const [carpoolEditDeparture, setCarpoolEditDeparture] = useState("");
   const [carpoolEditMax, setCarpoolEditMax] = useState("1");
+  const [carpoolEditStreet, setCarpoolEditStreet] = useState("");
+  const [carpoolEditComplement, setCarpoolEditComplement] = useState("");
+  const [carpoolEditPostalCode, setCarpoolEditPostalCode] = useState("");
+  const [carpoolEditCity, setCarpoolEditCity] = useState("");
   const [carpoolEditLoading, setCarpoolEditLoading] = useState(false);
   const [carpoolEditError, setCarpoolEditError] = useState<string | null>(null);
   // Annulation (DRIVER → annuler)
@@ -117,6 +127,10 @@ export function EditActivityModal({
   const [submitting, setSubmitting] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [updatedTitle, setUpdatedTitle] = useState("");
+
+  /* Confirmation avant un changement d'horaire qui invaliderait des covoiturages actifs */
+  const [scheduleConfirmOpen, setScheduleConfirmOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<UpdateActivityPayload | null>(null);
 
   const minDate = useMemo(() => todayIso(), []);
 
@@ -144,10 +158,18 @@ export function EditActivityModal({
     setCarpoolProposeEnabled(false);
     setCarpoolNewDeparture("");
     setCarpoolNewMax("1");
+    setCarpoolNewStreet("");
+    setCarpoolNewComplement("");
+    setCarpoolNewPostalCode("");
+    setCarpoolNewCity("");
     setCarpoolProposeError(null);
     setCarpoolEditing(false);
     setCarpoolEditDeparture("");
     setCarpoolEditMax("1");
+    setCarpoolEditStreet("");
+    setCarpoolEditComplement("");
+    setCarpoolEditPostalCode("");
+    setCarpoolEditCity("");
     setCarpoolEditError(null);
     setCarpoolCancelError(null);
     setCarpoolReadOnlyError(null);
@@ -171,6 +193,10 @@ export function EditActivityModal({
           if (myCarpool) {
             setCarpoolEditDeparture(myCarpool.departureTime.slice(0, 5));
             setCarpoolEditMax(String(myCarpool.maxPassengers));
+            setCarpoolEditStreet(myCarpool.departureStreet ?? "");
+            setCarpoolEditComplement(myCarpool.departureComplement ?? "");
+            setCarpoolEditPostalCode(myCarpool.departurePostalCode ?? "");
+            setCarpoolEditCity(myCarpool.departureCity ?? "");
           }
         }
       } catch (e) {
@@ -278,6 +304,25 @@ export function EditActivityModal({
     return null;
   };
 
+  const performUpdate = async (payload: UpdateActivityPayload) => {
+    if (!activity) return;
+    try {
+      setSubmitting(true);
+      const updated = await updateActivity(activity.id, payload);
+      setUpdatedTitle(updated.title?.trim() || payload.title);
+      setUpdateSuccess(true);
+      onSuccess(updated);
+    } catch (err) {
+      setSubmitError(
+        err instanceof ApiRequestError
+          ? err.message
+          : "Impossible de modifier l'activité. Réessayez."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
@@ -298,7 +343,7 @@ export function EditActivityModal({
             city: city.trim(),
           };
 
-    const payload = {
+    const payload: UpdateActivityPayload = {
       title: title.trim(),
       description: desc.length > 0 ? desc : null,
       activityTypeId: Number(activityTypeId),
@@ -310,20 +355,29 @@ export function EditActivityModal({
       location: locationPayload,
     };
 
-    try {
-      setSubmitting(true);
-      const updated = await updateActivity(activity.id, payload);
-      setUpdatedTitle(updated.title?.trim() || payload.title);
-      setUpdateSuccess(true);
-      onSuccess(updated);
-    } catch (err) {
-      setSubmitError(
-        err instanceof ApiRequestError
-          ? err.message
-          : "Impossible de modifier l'activité. Réessayez."
-      );
-    } finally {
-      setSubmitting(false);
+    // Rester hors-site mais avancer le début de l'activité peut rendre le
+    // départ d'un covoiturage existant caduc (départ >= nouveau début) : le
+    // backend l'annulerait automatiquement, donc on demande confirmation
+    // avant d'envoyer plutôt que de laisser la surprise arriver après coup.
+    const willInvalidateCarpool =
+      locationType === "OFF_SITE" &&
+      !!carpoolData &&
+      carpoolData.carpools.some((c) => c.departureTime >= payload.startTime);
+
+    if (willInvalidateCarpool) {
+      setPendingPayload(payload);
+      setScheduleConfirmOpen(true);
+      return;
+    }
+
+    await performUpdate(payload);
+  };
+
+  const handleConfirmScheduleChange = async () => {
+    setScheduleConfirmOpen(false);
+    if (pendingPayload) {
+      await performUpdate(pendingPayload);
+      setPendingPayload(null);
     }
   };
 
@@ -655,6 +709,9 @@ export function EditActivityModal({
                                     <p className="text-xs text-slate-500">
                                       Départ {c.departureTime.slice(0, 5)} · {c.passengerCount}/{c.maxPassengers} passagers
                                     </p>
+                                    <p className="text-[11px] text-slate-400">
+                                      Départ de : {formatCarpoolDeparture(c)}
+                                    </p>
                                   </div>
                                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                                     c.availableSeats === 0 ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-700"
@@ -704,6 +761,9 @@ export function EditActivityModal({
                               <p className="mt-0.5 text-sm font-bold text-slate-800">{myCarpool.passengerCount}</p>
                             </div>
                           </div>
+                          <p className="text-xs text-slate-500">
+                            Départ de : {formatCarpoolDeparture(myCarpool)}
+                          </p>
 
                           {/* Boutons Modifier / Annuler */}
                           {!carpoolEditing && (
@@ -779,6 +839,23 @@ export function EditActivityModal({
                                 </div>
                               </div>
 
+                              <div className="space-y-3">
+                                <p className={FORM_LABEL_CLASS}>Lieu de départ *</p>
+                                <OffSiteAddressFields
+                                  idPrefix="carpool-edit-"
+                                  street={carpoolEditStreet}
+                                  complement={carpoolEditComplement}
+                                  postalCode={carpoolEditPostalCode}
+                                  city={carpoolEditCity}
+                                  disabled={carpoolEditLoading}
+                                  inputClass={inputClass}
+                                  onStreetChange={setCarpoolEditStreet}
+                                  onComplementChange={setCarpoolEditComplement}
+                                  onPostalCodeChange={setCarpoolEditPostalCode}
+                                  onCityChange={setCarpoolEditCity}
+                                />
+                              </div>
+
                               {carpoolEditError && (
                                 <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{carpoolEditError}</p>
                               )}
@@ -812,11 +889,19 @@ export function EditActivityModal({
                                       setCarpoolEditError("L'heure de départ doit être avant le début de l'activité.");
                                       return;
                                     }
+                                    if (!carpoolEditStreet.trim() || !carpoolEditPostalCode.trim() || !carpoolEditCity.trim()) {
+                                      setCarpoolEditError("Le lieu de départ (adresse, code postal, ville) est obligatoire.");
+                                      return;
+                                    }
                                     setCarpoolEditLoading(true);
                                     try {
                                       await updateCarpool(activity!.id, myCarpool.id, {
                                         departureTime: depTime,
                                         maxPassengers: maxP,
+                                        departureStreet: carpoolEditStreet.trim(),
+                                        departureComplement: carpoolEditComplement.trim() || null,
+                                        departurePostalCode: carpoolEditPostalCode.trim(),
+                                        departureCity: carpoolEditCity.trim(),
                                       });
                                       const fresh = await getActivityCarpools(activity!.id);
                                       setCarpoolData(fresh);
@@ -824,6 +909,10 @@ export function EditActivityModal({
                                       if (updated) {
                                         setCarpoolEditDeparture(updated.departureTime.slice(0, 5));
                                         setCarpoolEditMax(String(updated.maxPassengers));
+                                        setCarpoolEditStreet(updated.departureStreet ?? "");
+                                        setCarpoolEditComplement(updated.departureComplement ?? "");
+                                        setCarpoolEditPostalCode(updated.departurePostalCode ?? "");
+                                        setCarpoolEditCity(updated.departureCity ?? "");
                                       }
                                       setCarpoolEditing(false);
                                     } catch (e) {
@@ -899,6 +988,23 @@ export function EditActivityModal({
                               </div>
                             </div>
 
+                            <div className="space-y-3">
+                              <p className={FORM_LABEL_CLASS}>Lieu de départ *</p>
+                              <OffSiteAddressFields
+                                idPrefix="carpool-new-"
+                                street={carpoolNewStreet}
+                                complement={carpoolNewComplement}
+                                postalCode={carpoolNewPostalCode}
+                                city={carpoolNewCity}
+                                disabled={carpoolProposeLoading}
+                                inputClass={inputClass}
+                                onStreetChange={setCarpoolNewStreet}
+                                onComplementChange={setCarpoolNewComplement}
+                                onPostalCodeChange={setCarpoolNewPostalCode}
+                                onCityChange={setCarpoolNewCity}
+                              />
+                            </div>
+
                             {carpoolProposeError && (
                               <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{carpoolProposeError}</p>
                             )}
@@ -923,11 +1029,19 @@ export function EditActivityModal({
                                   setCarpoolProposeError("L'heure de départ doit être avant le début de l'activité.");
                                   return;
                                 }
+                                if (!carpoolNewStreet.trim() || !carpoolNewPostalCode.trim() || !carpoolNewCity.trim()) {
+                                  setCarpoolProposeError("Le lieu de départ (adresse, code postal, ville) est obligatoire.");
+                                  return;
+                                }
                                 setCarpoolProposeLoading(true);
                                 try {
                                   await createCarpoolAsSubscriber(activity!.id, {
                                     departureTime: depTime,
                                     maxPassengers: maxP,
+                                    departureStreet: carpoolNewStreet.trim(),
+                                    departureComplement: carpoolNewComplement.trim() || null,
+                                    departurePostalCode: carpoolNewPostalCode.trim(),
+                                    departureCity: carpoolNewCity.trim(),
                                   });
                                   const fresh = await getActivityCarpools(activity!.id);
                                   setCarpoolData(fresh);
@@ -935,10 +1049,18 @@ export function EditActivityModal({
                                   if (mine) {
                                     setCarpoolEditDeparture(mine.departureTime.slice(0, 5));
                                     setCarpoolEditMax(String(mine.maxPassengers));
+                                    setCarpoolEditStreet(mine.departureStreet ?? "");
+                                    setCarpoolEditComplement(mine.departureComplement ?? "");
+                                    setCarpoolEditPostalCode(mine.departurePostalCode ?? "");
+                                    setCarpoolEditCity(mine.departureCity ?? "");
                                   }
                                   setCarpoolProposeEnabled(false);
                                   setCarpoolNewDeparture("");
                                   setCarpoolNewMax("1");
+                                  setCarpoolNewStreet("");
+                                  setCarpoolNewComplement("");
+                                  setCarpoolNewPostalCode("");
+                                  setCarpoolNewCity("");
                                 } catch (e) {
                                   setCarpoolProposeError(
                                     e instanceof ApiRequestError ? e.message : "Impossible de proposer le covoiturage."
@@ -1008,6 +1130,51 @@ export function EditActivityModal({
           )}
         </div>
       </div>
+
+      {/* Confirmation : le nouvel horaire invaliderait un ou plusieurs covoiturages actifs */}
+      {scheduleConfirmOpen && (
+        <div
+          className="fixed inset-0 z-[250] flex items-center justify-center p-4"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="schedule-confirm-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            aria-label="Annuler"
+            onClick={() => setScheduleConfirmOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-amber-200">
+            <h2 id="schedule-confirm-title" className="text-lg font-bold text-slate-900">
+              Confirmer le changement d&apos;horaire ?
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              Le nouvel horaire est postérieur (ou égal) à l&apos;heure de départ d&apos;un ou plusieurs
+              covoiturages actifs pour cette activité. Ils seront automatiquement annulés et leurs
+              passagers en seront informés.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setScheduleConfirmOpen(false)}
+                disabled={submitting}
+                className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmScheduleChange}
+                disabled={submitting}
+                className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:opacity-60"
+              >
+                {submitting ? "Enregistrement…" : "Oui, modifier"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

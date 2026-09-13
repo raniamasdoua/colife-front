@@ -13,6 +13,10 @@ export type CarpoolUserRole = "DRIVER" | "PASSENGER" | "NONE";
 export interface CarpoolRequest {
   departureTime: string;
   maxPassengers: number;
+  departureStreet: string;
+  departureComplement?: string | null;
+  departurePostalCode: string;
+  departureCity: string;
 }
 
 export interface CarpoolResponse {
@@ -22,6 +26,10 @@ export interface CarpoolResponse {
   driverId: string;
   departureTime: string;
   maxPassengers: number;
+  departureStreet: string;
+  departureComplement: string | null;
+  departurePostalCode: string;
+  departureCity: string;
 }
 
 export interface CarpoolPassengerSummary {
@@ -43,6 +51,10 @@ export interface CarpoolDetail {
   availableSeats: number;
   status: CarpoolStatus;
   passengers: CarpoolPassengerSummary[];
+  departureStreet: string;
+  departureComplement: string | null;
+  departurePostalCode: string;
+  departureCity: string;
 }
 
 /** Réponse de GET /activities/{id}/carpools */

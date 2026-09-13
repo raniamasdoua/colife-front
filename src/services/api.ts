@@ -44,12 +44,18 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     if (response.status === 401) {
-      // Un 401 signifie que le token porté (s'il y en a un) n'est plus valide pour
-      // l'API : le garder en mémoire ne sert à rien et ne ferait que répéter l'erreur.
-      // On nettoie la session locale pour que l'utilisateur retombe proprement sur
-      // /welcome (le renouvellement silencieux — cf. AuthBridge — couvre normalement
-      // le cas nominal ; ceci reste un filet de sécurité).
-      requireLogout();
+      // Un 401 alors qu'un token était porté signifie que ce token n'est plus valide
+      // pour l'API : le garder en mémoire ne sert à rien et ne ferait que répéter
+      // l'erreur. On nettoie la session locale pour que l'utilisateur retombe
+      // proprement sur /welcome (le renouvellement silencieux — cf. AuthBridge —
+      // couvre normalement le cas nominal ; ceci reste un filet de sécurité).
+      // Si en revanche AUCUN token n'était encore disponible (ex. requête partie
+      // avant que le token ne soit posé juste après un login), ce n'est pas une
+      // session invalidée : ne pas déconnecter une session qui vient tout juste
+      // de s'établir.
+      if (token) {
+        requireLogout();
+      }
       throw new ApiRequestError("Session expirée ou non authentifié.", 401);
     }
 

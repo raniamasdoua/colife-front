@@ -61,6 +61,10 @@ export const MOCK_CARPOOL: CarpoolDetail = {
   availableSeats: 2,
   status: "ACTIVE",
   passengers: [],
+  departureStreet: "1 rue Test",
+  departureComplement: null,
+  departurePostalCode: "75000",
+  departureCity: "Paris",
 };
 
 export const MOCK_PARTICIPANT: ActivityParticipant = {

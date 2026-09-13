@@ -93,12 +93,14 @@ describe("apiFetch", () => {
     expect((err as ApiRequestError).status).toBe(500);
   });
 
-  it("appelle requireLogout et lance ApiRequestError sur une réponse 401 sans token", async () => {
+  it("lance ApiRequestError sans appeler requireLogout sur une réponse 401 sans token", async () => {
+    // Aucun token envoyé = pas encore de session établie (ex. requête partie avant
+    // que le token ne soit posé juste après un login) : rien à déconnecter.
     server.use(
       http.get(`${BASE}/protected`, () => new HttpResponse(null, { status: 401 }))
     );
     await apiFetch("/protected").catch(() => {});
-    expect(vi.mocked(requireLogout)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(requireLogout)).not.toHaveBeenCalled();
   });
 
   it("appelle aussi requireLogout sur une réponse 401 alors qu'un token était présent", async () => {

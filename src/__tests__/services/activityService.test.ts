@@ -203,7 +203,13 @@ describe("createCarpoolAsSubscriber", () => {
         return HttpResponse.json(MOCK_CARPOOL, { status: 201 });
       })
     );
-    const payload: CarpoolRequest = { departureTime: "08:30:00", maxPassengers: 3 };
+    const payload: CarpoolRequest = {
+      departureTime: "08:30:00",
+      maxPassengers: 3,
+      departureStreet: "1 rue Test",
+      departurePostalCode: "75000",
+      departureCity: "Paris",
+    };
     const result = await createCarpoolAsSubscriber(1, payload);
     expect((sentBody as Record<string, unknown>).departureTime).toBe("08:30:00");
     expect((sentBody as Record<string, unknown>).maxPassengers).toBe(3);
@@ -228,7 +234,13 @@ describe("leaveCarpool", () => {
 
 describe("updateCarpool", () => {
   it("envoie un PUT et retourne le covoiturage mis à jour", async () => {
-    const result = await updateCarpool(1, 1, { departureTime: "08:00:00", maxPassengers: 4 });
+    const result = await updateCarpool(1, 1, {
+      departureTime: "08:00:00",
+      maxPassengers: 4,
+      departureStreet: "1 rue Test",
+      departurePostalCode: "75000",
+      departureCity: "Paris",
+    });
     expect(result.maxPassengers).toBe(4);
     expect(result.availableSeats).toBe(3);
   });

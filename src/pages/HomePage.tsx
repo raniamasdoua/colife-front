@@ -206,6 +206,11 @@ export function HomePage() {
       "Votre désinscription a bien été enregistrée. L'activité réapparaîtra parmi les disponibles si des places sont libres."
     );
     setRegisteredActivities((prev) => prev.filter((a) => a.id !== updated.id));
+    setAvailableActivities((prev) =>
+      prev.some((a) => a.id === updated.id)
+        ? prev.map((a) => (a.id === updated.id ? updated : a))
+        : [...prev, updated]
+    );
     setDetail((prev) => (prev?.id === updated.id ? null : prev));
     setDetailOpen(false);
   }, []);
