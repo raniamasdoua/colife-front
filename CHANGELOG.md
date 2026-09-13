@@ -1,3 +1,27 @@
+## v0.5.0 - 2026-09-13
+
+### 🚀 Features
+- feat(notifications) : gerer les types nouvel inscrit et activite complete
+- feat(covoiturage, notifications) : lieu de depart, compteur unifie et corrections diverses
+- feat(admin) : ajouter Profil à la navigation admin
+- feat(navigation) : accéder à la déconnexion depuis la topbar
+- feat(planning) : remplacer le filtre type par une liste déroulante
+- feat(notifications) : afficher les notifications dans l'application
+- feat(materiel) : proposer, modifier et retirer du matériel pour une activité
+- feat(admin) : afficher et gérer les activités liées à un utilisateur
+
+### 🐛 Fixes
+- fix(admin) : supprimer le double appel getMe() à l'entrée de l'espace admin
+- fix(tests) : rendre le test de sélection de date indépendant du jour réel
+- fix(notifications) : trier les non-lues en premier dans le menu déroulant
+- fix(ui) : réduire la densité de l'interface sur petits écrans
+- fix(layout) : rendre la sidebar persistante sur les deux espaces
+- fix(ui) : permettre la saisie clavier de l'heure et l'incrément minute par minute
+- fix(auth) : renouveler silencieusement le token de session avant expiration
+- fix(profil) : retirer la suppression de compte factice et fiabiliser le changement de mot de passe
+
+---
+
 ## v0.4.0 - 2026-07-23
 
 ### 🚀 Features
