@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { LayoutDashboard, CalendarDays, Tag, Users, LayoutGrid } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Tag, Users, User, LayoutGrid } from "lucide-react";
 import { SidebarNavList } from "../layout/SidebarNavList";
 
 const NAV_ITEMS = [
@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: "/admin/activities", icon: CalendarDays, label: "Activités" },
   { to: "/admin/activity-types", icon: Tag, label: "Types d'activités" },
   { to: "/admin/users", icon: Users, label: "Utilisateurs" },
+  { to: "/admin/profile", icon: User, label: "Profil" },
 ];
 
 type AdminSidebarProps = {
