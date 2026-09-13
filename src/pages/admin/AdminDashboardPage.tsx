@@ -1,7 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import { CalendarDays, CalendarCheck, Tag, Users, UserCheck, Car } from "lucide-react";
 
-import { AdminLayout } from "../../components/admin/AdminLayout";
 import { COLIFE_SECTION_LABEL } from "../../components/admin/adminTheme";
 import { StatCard } from "../../components/admin/StatCard";
 import { QuickActions } from "../../components/admin/QuickActions";
@@ -37,7 +36,7 @@ export function AdminDashboardPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       {loading ? (
         <div className="flex items-center justify-center py-24">
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-purple-600 border-t-transparent" />
@@ -115,6 +114,6 @@ export function AdminDashboardPage() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
       />
-    </AdminLayout>
+    </>
   );
 }

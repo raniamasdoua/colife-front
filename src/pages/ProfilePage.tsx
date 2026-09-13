@@ -21,7 +21,6 @@ import { getMyActivities, getRegisteredActivities } from "../services/activitySe
 import { isActivityNoLongerEditable } from "../utils/activitySchedule";
 import { changePasswordRedirect } from "../auth/oidcConfig";
 import type { UserProfile } from "../types/auth";
-import { CollaboratorLayout } from "../components/layout/CollaboratorLayout";
 
 function Toggle({
   checked,
@@ -250,7 +249,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
         </div>
       </div>
     );
-    return adminShell ? spinner : <CollaboratorLayout>{spinner}</CollaboratorLayout>;
+    return spinner;
   }
 
   if (loadError || !profile) {
@@ -267,7 +266,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
         </div>
       </div>
     );
-    return adminShell ? err : <CollaboratorLayout>{err}</CollaboratorLayout>;
+    return err;
   }
 
   const stats = [
@@ -639,9 +638,5 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     </>
   );
 
-  return adminShell ? (
-    <div className="w-full">{mainContent}</div>
-  ) : (
-    <CollaboratorLayout>{mainContent}</CollaboratorLayout>
-  );
+  return <div className="w-full">{mainContent}</div>;
 }

@@ -1,9 +1,9 @@
-import { NavLink } from "react-router-dom";
 import { PanelLeftClose, PanelLeft, PlusCircle } from "lucide-react";
 import type { UserProfile } from "../../types/auth";
 import { useCreateActivityModal } from "../../context/CreateActivityModalContext";
 import { getInitials } from "../../utils/userDisplay";
 import { NotificationBell } from "./NotificationBell";
+import { UserMenu } from "./UserMenu";
 
 type CollaboratorTopBarProps = {
   user: UserProfile | null;
@@ -65,13 +65,14 @@ export function CollaboratorTopBar({
 
         <NotificationBell />
 
-        <NavLink
-          to="/profile"
-          aria-label="Mon profil"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 text-sm font-bold text-white shadow-md ring-2 ring-white focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+        <UserMenu
+          user={user}
+          profileTo="/profile"
+          triggerAriaLabel="Menu du compte"
+          triggerClassName="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 text-sm font-bold text-white shadow-md ring-2 ring-white focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
         >
           {initials}
-        </NavLink>
+        </UserMenu>
       </div>
     </header>
   );

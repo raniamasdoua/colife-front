@@ -1,23 +1,45 @@
-import { useEffect, useState, useCallback, type ReactNode } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminTopBar } from "./AdminTopBar";
 import { getMe } from "../../services/userService";
 import type { UserProfile } from "../../types/auth";
 
-type AdminLayoutProps = {
-  children: ReactNode;
-  title?: string;
-  subtitle?: string;
+const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
+  "/admin/dashboard": {
+    title: "Tableau de bord administrateur",
+    subtitle: "Supervisez et gérez l'ensemble de la plateforme CoLife",
+  },
+  "/admin/activities": {
+    title: "Activités",
+    subtitle: "Vue complète et gestion de toutes les activités de la plateforme",
+  },
+  "/admin/activity-types": {
+    title: "Types d'activités",
+    subtitle: "Créez et gérez les catégories proposées aux collaborateurs",
+  },
+  "/admin/users": {
+    title: "Utilisateurs",
+    subtitle: "Gestion et consultation de tous les membres de la plateforme",
+  },
+  "/admin/profile": {
+    title: "Mon profil",
+    subtitle: "Gérez vos informations personnelles et la sécurité de votre compte",
+  },
 };
 
-export function AdminLayout({
-  children,
-  title = "Tableau de bord administrateur",
-  subtitle = "Supervisez et gérez l'ensemble de la plateforme CoLife",
-}: AdminLayoutProps) {
+const DEFAULT_PAGE = PAGE_TITLES["/admin/dashboard"];
+
+/**
+ * Layout persistant de l'espace admin (route parente avec <Outlet/>) : la
+ * sidebar/topbar ne se montent qu'une fois pour tout l'espace, seul le
+ * contenu de la page change à la navigation — plus de rechargement du profil
+ * utilisateur ni de remontage de la sidebar à chaque changement de page.
+ */
+export function AdminLayout() {
+  const location = useLocation();
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -26,12 +48,7 @@ export function AdminLayout({
       .then((u) => {
         if (!cancelled) setUser(u);
       })
-      .catch(() => {
-        if (!cancelled) setUser(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -55,13 +72,11 @@ export function AdminLayout({
     }
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-purple-600 border-t-transparent" />
-      </div>
-    );
-  }
+  const { title, subtitle } = PAGE_TITLES[location.pathname] ?? DEFAULT_PAGE;
+
+  useEffect(() => {
+    document.title = `${title} — CoLife Admin`;
+  }, [title]);
 
   const asideClass = [
     "flex shrink-0 flex-col overflow-hidden border-slate-200/90 bg-white shadow-md transition-[width,transform] duration-300 ease-in-out",
@@ -98,7 +113,9 @@ export function AdminLayout({
         </aside>
 
         <main className="min-h-[calc(100vh-4rem)] min-w-0 flex-1 overflow-y-auto bg-gradient-to-b from-slate-50 via-white to-slate-50/90 p-6 md:pt-6 lg:p-8">
-          <div className="mx-auto w-full max-w-6xl">{children}</div>
+          <div className="mx-auto w-full max-w-6xl">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

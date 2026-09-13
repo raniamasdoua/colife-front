@@ -1,6 +1,6 @@
-import { Link } from "react-router-dom";
 import { PanelLeftClose, PanelLeft, Shield } from "lucide-react";
 import type { UserProfile } from "../../types/auth";
+import { UserMenu } from "../layout/UserMenu";
 
 type AdminTopBarProps = {
   user: UserProfile | null;
@@ -54,10 +54,11 @@ export function AdminTopBar({
         <p className="hidden truncate text-xs text-slate-500 sm:block">{subtitle}</p>
       </div>
 
-      <Link
-        to="/admin/profile"
-        className="flex shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 text-slate-700 ring-1 ring-slate-200/90 transition hover:bg-slate-50 hover:ring-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 sm:gap-3 sm:px-3"
-        title="Voir mon profil"
+      <UserMenu
+        user={user}
+        profileTo="/admin/profile"
+        triggerAriaLabel="Menu du compte"
+        triggerClassName="flex shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 text-slate-700 ring-1 ring-slate-200/90 transition hover:bg-slate-50 hover:ring-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 sm:gap-3 sm:px-3"
       >
         <div className="hidden text-right sm:block">
           <p className="text-sm font-semibold leading-none text-slate-900">
@@ -71,7 +72,7 @@ export function AdminTopBar({
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 text-sm font-bold text-white shadow-md ring-2 ring-white">
           {initials}
         </div>
-      </Link>
+      </UserMenu>
     </header>
   );
 }

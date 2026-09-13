@@ -13,6 +13,16 @@
   html {
     @apply antialiased;
   }
+
+  /* Les espacements, tailles de texte et hauteurs de composants Tailwind sont
+     presque tous en rem : réduire la taille de police racine sous 1536px
+     (écrans de laptop ~13-15") rétrécit tout proportionnellement (marges,
+     boutons, cartes, textes) sans avoir à retoucher chaque composant. */
+  @media (max-width: 1536px) {
+    html {
+      font-size: 14px;
+    }
+  }
 }
 
 /* Scrollbar personnalisée — thème CoLife violet */

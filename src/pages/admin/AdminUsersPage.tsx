@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 
 import { AdminActivityDetailModal } from "../../components/admin/AdminActivityDetailModal";
-import { AdminLayout } from "../../components/admin/AdminLayout";
 import { COLIFE_CARD, COLIFE_SECTION_LABEL } from "../../components/admin/adminTheme";
 import { EditActivityModal } from "../../components/EditActivityModal";
 import { MessageModal } from "../../components/ui/MessageModal";
@@ -617,10 +616,7 @@ export function AdminUsersPage() {
 
   /* ── Rendu ── */
   return (
-    <AdminLayout
-      title="Utilisateurs"
-      subtitle="Gestion et consultation de tous les membres de la plateforme"
-    >
+    <>
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* ── Stats ── */}
@@ -816,6 +812,6 @@ export function AdminUsersPage() {
           setSelectedUser(null);
         }}
       />
-    </AdminLayout>
+    </>
   );
 }
