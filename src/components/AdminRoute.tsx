@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
 import { getMe } from "../services/userService";
+import { AdminUserProvider } from "../context/AdminUserContext";
 import type { UserProfile } from "../types/auth";
 
 interface AdminRouteProps {
@@ -60,5 +61,5 @@ export function AdminRoute({ children }: AdminRouteProps) {
     return <Navigate to="/home" replace />;
   }
 
-  return <>{children}</>;
+  return <AdminUserProvider value={user}>{children}</AdminUserProvider>;
 }
