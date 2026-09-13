@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, CalendarClock, CalendarX, Car, Loader2 } from "lucide-react";
 
@@ -38,6 +38,14 @@ export function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Non-lues d'abord (le badge compte toutes les non-lues, pas seulement les 8
+  // premières affichées) — sinon le badge peut annoncer des non-lues restées
+  // invisibles dans le menu si elles sont plus anciennes que les 8 dernières.
+  const sortedNotifications = useMemo(
+    () => (notifications ? [...notifications].sort((a, b) => Number(a.read) - Number(b.read)) : null),
+    [notifications]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -154,7 +162,7 @@ export function NotificationBell() {
 
             {!loading && !error && notifications && notifications.length > 0 && (
               <ul>
-                {notifications.slice(0, DROPDOWN_LIMIT).map((n) => {
+                {(sortedNotifications ?? notifications).slice(0, DROPDOWN_LIMIT).map((n) => {
                   const Icon = TYPE_ICON[n.type];
                   return (
                     <li key={n.id}>
