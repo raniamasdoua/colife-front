@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "react-oidc-context";
 
@@ -24,9 +24,13 @@ const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage").then((m
 function AuthBridge() {
   const auth = useAuth();
 
-  useEffect(() => {
-    setAccessToken(auth.user?.access_token ?? null);
-  }, [auth.user?.access_token]);
+  // Synchrone (pas un useEffect) : le rendu précède toujours les effets, donc le
+  // token est garanti à jour avant que le moindre useEffect enfant (ex. le
+  // chargement des données de /home juste après le login) ne déclenche un fetch.
+  // Avec un useEffect ici, HomePage pouvait monter et lancer son premier appel API
+  // avant que ce composant n'ait eu la main pour poser le token — requête sans
+  // Authorization, 401, déconnexion immédiate et retour sur /welcome.
+  setAccessToken(auth.user?.access_token ?? null);
 
   useEffect(() => {
     setLoginTrigger(() => {
@@ -65,17 +69,30 @@ function FullScreenLoader() {
 
 function AppContent() {
   const auth = useAuth();
+  const retriedStaleState = useRef(false);
+
+  const isStaleState = !!auth.error?.message.includes("No matching state found in storage");
+
+  // auth.clearStaleState()/signinRedirect() modifient l'état de AuthProvider : les
+  // déclencher directement dans le rendu de AppContent (un composant différent)
+  // n'est pas permis par React ("Cannot update a component while rendering a
+  // different component") et peut faire perdre la mise à jour. On le fait dans un
+  // effet, avec un garde-fou pour ne réessayer qu'une seule fois.
+  useEffect(() => {
+    if (isStaleState && !retriedStaleState.current) {
+      retriedStaleState.current = true;
+      auth.clearStaleState();
+      void auth.signinRedirect();
+    }
+  }, [isStaleState, auth]);
 
   if (auth.isLoading || auth.activeNavigator) {
     return <FullScreenLoader />;
   }
 
   if (auth.error) {
-    const isStaleState = auth.error.message.includes("No matching state found in storage");
     if (isStaleState) {
-      auth.clearStaleState();
-      void auth.signinRedirect();
-      return null;
+      return <FullScreenLoader />;
     }
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">

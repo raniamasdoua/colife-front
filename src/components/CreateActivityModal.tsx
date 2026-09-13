@@ -51,6 +51,10 @@ function emptyForm() {
     carpoolEnabled: false,
     carpoolDepartureTime: "",
     carpoolMaxPassengers: "",
+    carpoolDepartureStreet: "",
+    carpoolDepartureComplement: "",
+    carpoolDeparturePostalCode: "",
+    carpoolDepartureCity: "",
   };
 }
 
@@ -83,6 +87,10 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
   const [carpoolEnabled, setCarpoolEnabled] = useState(false);
   const [carpoolDepartureTime, setCarpoolDepartureTime] = useState("");
   const [carpoolMaxPassengers, setCarpoolMaxPassengers] = useState("");
+  const [carpoolDepartureStreet, setCarpoolDepartureStreet] = useState("");
+  const [carpoolDepartureComplement, setCarpoolDepartureComplement] = useState("");
+  const [carpoolDeparturePostalCode, setCarpoolDeparturePostalCode] = useState("");
+  const [carpoolDepartureCity, setCarpoolDepartureCity] = useState("");
 
   const [materials, setMaterials] = useState<{ description: string; quantity: string }[]>([]);
 
@@ -112,6 +120,10 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
     setCarpoolEnabled(f.carpoolEnabled);
     setCarpoolDepartureTime(f.carpoolDepartureTime);
     setCarpoolMaxPassengers(f.carpoolMaxPassengers);
+    setCarpoolDepartureStreet(f.carpoolDepartureStreet);
+    setCarpoolDepartureComplement(f.carpoolDepartureComplement);
+    setCarpoolDeparturePostalCode(f.carpoolDeparturePostalCode);
+    setCarpoolDepartureCity(f.carpoolDepartureCity);
     setMaterials([]);
     setSubmitError(null);
     setCreateSuccess(false);
@@ -219,6 +231,11 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
       if (!carpoolMaxPassengers.trim() || !Number.isFinite(maxP) || maxP < 1) {
         return "Le nombre de places passagers doit être supérieur ou égal à 1.";
       }
+      if (!carpoolDepartureStreet.trim()) return "L'adresse de départ du covoiturage est obligatoire.";
+      if (!carpoolDeparturePostalCode.trim() || !/^\d{5}$/.test(carpoolDeparturePostalCode.trim())) {
+        return "Le code postal du lieu de départ doit contenir 5 chiffres.";
+      }
+      if (!carpoolDepartureCity.trim()) return "La ville du lieu de départ est obligatoire.";
     }
 
     for (const m of materials) {
@@ -280,6 +297,10 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
         ? {
             departureTime: toBackendTime(carpoolDepartureTime),
             maxPassengers: Number(carpoolMaxPassengers),
+            departureStreet: carpoolDepartureStreet.trim(),
+            departureComplement: carpoolDepartureComplement.trim() || null,
+            departurePostalCode: carpoolDeparturePostalCode.trim(),
+            departureCity: carpoolDepartureCity.trim(),
           }
         : null,
       materials: materials
@@ -673,6 +694,23 @@ export function CreateActivityModal({ open, onOpenChange }: CreateActivityModalP
                               Hors conducteur (vous).
                             </p>
                           </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <p className={FORM_LABEL_CLASS}>Lieu de départ *</p>
+                          <OffSiteAddressFields
+                            idPrefix="carpool-departure-"
+                            street={carpoolDepartureStreet}
+                            complement={carpoolDepartureComplement}
+                            postalCode={carpoolDeparturePostalCode}
+                            city={carpoolDepartureCity}
+                            disabled={submitting}
+                            inputClass={inputClass}
+                            onStreetChange={setCarpoolDepartureStreet}
+                            onComplementChange={setCarpoolDepartureComplement}
+                            onPostalCodeChange={setCarpoolDeparturePostalCode}
+                            onCityChange={setCarpoolDepartureCity}
+                          />
                         </div>
                       </div>
                     ) : (

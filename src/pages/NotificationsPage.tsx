@@ -1,18 +1,16 @@
 import { useEffect, useState } from "react";
 import { Bell, CalendarClock, CalendarX, Car, Loader2 } from "lucide-react";
 
-import {
-  getNotifications,
-  markAllNotificationsAsRead,
-  markNotificationAsRead,
-} from "../services/notificationService";
+import { getNotifications } from "../services/notificationService";
 import { ApiRequestError } from "../services/api";
+import { useNotificationCount } from "../context/NotificationContext";
 import type { NotificationResponse, NotificationType } from "../types/notification";
 
 const TYPE_ICON: Record<NotificationType, typeof CalendarClock> = {
   ACTIVITY_UPDATED: CalendarClock,
   ACTIVITY_CANCELLED: CalendarX,
   CARPOOL_CANCELLED: Car,
+  CARPOOL_UPDATED: Car,
 };
 
 function formatDate(iso: string): string {
@@ -26,6 +24,7 @@ function formatDate(iso: string): string {
 }
 
 export function NotificationsPage() {
+  const { markAsRead, markAllAsRead } = useNotificationCount();
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +52,7 @@ export function NotificationsPage() {
   const handleMarkAsRead = async (notification: NotificationResponse) => {
     if (notification.read) return;
     try {
-      const updated = await markNotificationAsRead(notification.id);
+      const updated = await markAsRead(notification);
       setNotifications((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
     } catch {
       // Échec silencieux : la notification reste non lue, l'utilisateur peut réessayer.
@@ -62,7 +61,7 @@ export function NotificationsPage() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await markAllNotificationsAsRead();
+      await markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch {
       // Échec silencieux.

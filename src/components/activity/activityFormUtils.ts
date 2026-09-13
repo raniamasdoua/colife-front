@@ -27,3 +27,16 @@ export function toBackendTime(value: string): string {
   }
   return value;
 }
+
+/** Formate le lieu de départ d'un covoiturage, avec repli si l'adresse n'est pas renseignée. */
+export function formatCarpoolDeparture(carpool: {
+  departureStreet?: string | null;
+  departurePostalCode?: string | null;
+  departureCity?: string | null;
+}): string {
+  const parts = [
+    carpool.departureStreet?.trim(),
+    [carpool.departurePostalCode?.trim(), carpool.departureCity?.trim()].filter(Boolean).join(" "),
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : "Adresse non renseignée";
+}

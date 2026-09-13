@@ -21,9 +21,11 @@ interface MaterialSectionProps {
   activityId: number;
   /** Désactive la proposition de matériel (ex: activité passée). */
   disabled?: boolean;
+  /** L'utilisateur peut-il proposer du matériel (organisateur ou inscrit) ? */
+  canPropose?: boolean;
 }
 
-export function MaterialSection({ activityId, disabled = false }: MaterialSectionProps) {
+export function MaterialSection({ activityId, disabled = false, canPropose = true }: MaterialSectionProps) {
   const [materials, setMaterials] = useState<MaterialResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -145,7 +147,7 @@ export function MaterialSection({ activityId, disabled = false }: MaterialSectio
           <Package className="h-4 w-4 text-violet-500" />
           Matériel
         </div>
-        {!disabled && !showForm && (
+        {!disabled && canPropose && !showForm && (
           <button
             type="button"
             onClick={() => setShowForm(true)}

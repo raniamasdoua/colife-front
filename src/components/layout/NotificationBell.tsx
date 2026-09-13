@@ -2,22 +2,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, CalendarClock, CalendarX, Car, Loader2 } from "lucide-react";
 
-import {
-  getNotifications,
-  getUnreadNotificationCount,
-  markAllNotificationsAsRead,
-  markNotificationAsRead,
-} from "../../services/notificationService";
+import { getNotifications } from "../../services/notificationService";
 import { ApiRequestError } from "../../services/api";
+import { useNotificationCount } from "../../context/NotificationContext";
 import type { NotificationResponse, NotificationType } from "../../types/notification";
 
-const POLL_INTERVAL_MS = 30_000;
 const DROPDOWN_LIMIT = 8;
 
 const TYPE_ICON: Record<NotificationType, typeof CalendarClock> = {
   ACTIVITY_UPDATED: CalendarClock,
   ACTIVITY_CANCELLED: CalendarX,
   CARPOOL_CANCELLED: Car,
+  CARPOOL_UPDATED: Car,
 };
 
 function formatRelativeDate(iso: string): string {
@@ -32,8 +28,8 @@ function formatRelativeDate(iso: string): string {
 
 export function NotificationBell() {
   const navigate = useNavigate();
+  const { unreadCount, markAsRead, markAllAsRead } = useNotificationCount();
   const [open, setOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationResponse[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,25 +42,6 @@ export function NotificationBell() {
     () => (notifications ? [...notifications].sort((a, b) => Number(a.read) - Number(b.read)) : null),
     [notifications]
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    const fetchUnreadCount = () => {
-      getUnreadNotificationCount()
-        .then((count) => {
-          if (!cancelled) setUnreadCount(count);
-        })
-        .catch(() => {
-          // Échec silencieux : le badge reste simplement à sa dernière valeur connue.
-        });
-    };
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -94,9 +71,8 @@ export function NotificationBell() {
   const handleMarkAsRead = async (notification: NotificationResponse) => {
     if (notification.read) return;
     try {
-      const updated = await markNotificationAsRead(notification.id);
+      const updated = await markAsRead(notification);
       setNotifications((prev) => prev?.map((n) => (n.id === updated.id ? updated : n)) ?? prev);
-      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch {
       // Échec silencieux : la notification reste non lue, l'utilisateur peut réessayer.
     }
@@ -104,9 +80,8 @@ export function NotificationBell() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await markAllNotificationsAsRead();
+      await markAllAsRead();
       setNotifications((prev) => prev?.map((n) => ({ ...n, read: true })) ?? prev);
-      setUnreadCount(0);
     } catch {
       // Échec silencieux.
     }

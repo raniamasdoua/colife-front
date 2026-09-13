@@ -1,14 +1,7 @@
 import { Link } from "react-router-dom";
 import { Home, CalendarDays, Compass, Bell, User, Shield } from "lucide-react";
 import { SidebarNavList } from "./SidebarNavList";
-
-const NAV_ITEMS = [
-  { to: "/home", icon: Home, label: "Accueil" },
-  { to: "/planning", icon: CalendarDays, label: "Planning" },
-  { to: "/explore", icon: Compass, label: "Explorer" },
-  { to: "/notifications", icon: Bell, label: "Notifications" },
-  { to: "/profile", icon: User, label: "Profil" },
-];
+import { useNotificationCount } from "../../context/NotificationContext";
 
 type CollaboratorSidebarProps = {
   readonly isAdmin: boolean;
@@ -16,9 +9,19 @@ type CollaboratorSidebarProps = {
 };
 
 export function CollaboratorSidebar({ isAdmin, onNavigate }: CollaboratorSidebarProps) {
+  const { unreadCount } = useNotificationCount();
+
+  const navItems = [
+    { to: "/home", icon: Home, label: "Accueil" },
+    { to: "/planning", icon: CalendarDays, label: "Planning" },
+    { to: "/explore", icon: Compass, label: "Explorer" },
+    { to: "/notifications", icon: Bell, label: "Notifications", badge: unreadCount },
+    { to: "/profile", icon: User, label: "Profil" },
+  ];
+
   return (
     <>
-      <SidebarNavList items={NAV_ITEMS} onNavigate={onNavigate} ariaLabel="Navigation principale" />
+      <SidebarNavList items={navItems} onNavigate={onNavigate} ariaLabel="Navigation principale" />
 
       {isAdmin && (
         <div className="border-t border-slate-100 px-2.5 pt-3 pb-1">
