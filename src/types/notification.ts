@@ -1,4 +1,10 @@
-export type NotificationType = "ACTIVITY_UPDATED" | "ACTIVITY_CANCELLED" | "CARPOOL_CANCELLED" | "CARPOOL_UPDATED";
+export type NotificationType =
+  | "ACTIVITY_UPDATED"
+  | "ACTIVITY_CANCELLED"
+  | "CARPOOL_CANCELLED"
+  | "CARPOOL_UPDATED"
+  | "NEW_SUBSCRIBER"
+  | "ACTIVITY_FULL";
 
 /** Réponse GET /notifications */
 export interface NotificationResponse {

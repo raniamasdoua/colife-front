@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, CalendarClock, CalendarX, Car, Loader2 } from "lucide-react";
+import { Bell, CalendarClock, CalendarX, Car, Loader2, UserPlus, Users } from "lucide-react";
 
 import { getNotifications } from "../../services/notificationService";
 import { ApiRequestError } from "../../services/api";
@@ -14,6 +14,8 @@ const TYPE_ICON: Record<NotificationType, typeof CalendarClock> = {
   ACTIVITY_CANCELLED: CalendarX,
   CARPOOL_CANCELLED: Car,
   CARPOOL_UPDATED: Car,
+  NEW_SUBSCRIBER: UserPlus,
+  ACTIVITY_FULL: Users,
 };
 
 function formatRelativeDate(iso: string): string {

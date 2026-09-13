@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, CalendarClock, CalendarX, Car, Loader2 } from "lucide-react";
+import { Bell, CalendarClock, CalendarX, Car, Loader2, UserPlus, Users } from "lucide-react";
 
 import { getNotifications } from "../services/notificationService";
 import { ApiRequestError } from "../services/api";
@@ -11,6 +11,8 @@ const TYPE_ICON: Record<NotificationType, typeof CalendarClock> = {
   ACTIVITY_CANCELLED: CalendarX,
   CARPOOL_CANCELLED: Car,
   CARPOOL_UPDATED: Car,
+  NEW_SUBSCRIBER: UserPlus,
+  ACTIVITY_FULL: Users,
 };
 
 function formatDate(iso: string): string {
