@@ -91,8 +91,16 @@ describe("ActivityDatePicker", () => {
 
   describe("sélection de date", () => {
     it("appelle onChange avec la date ISO au clic sur un jour futur", async () => {
+      // Calculé à partir de la date réelle du jour (plutôt qu'une valeur figée) pour
+      // que le mois suivant contienne toujours au moins un jour sélectionnable,
+      // quelle que soit la date à laquelle ce test s'exécute.
+      const today = new Date();
+      const initialValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
+      const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+      const expectedPrefix = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-`;
+
       const onChange = vi.fn();
-      render(<ActivityDatePicker id="date" value="2026-07-01" onChange={onChange} />);
+      render(<ActivityDatePicker id="date" value={initialValue} onChange={onChange} />);
       await userEvent.click(screen.getByRole("button"));
       const dialog = screen.getByRole("dialog", { name: /calendrier/i });
       await userEvent.click(within(dialog).getByRole("button", { name: /mois suivant/i }));
@@ -100,7 +108,7 @@ describe("ActivityDatePicker", () => {
         (btn) => /^\d+$/.test(btn.textContent ?? "") && !(btn as HTMLButtonElement).disabled
       );
       await userEvent.click(dayButtons[0]);
-      expect(onChange).toHaveBeenCalledWith(expect.stringMatching(/^2026-08-/));
+      expect(onChange).toHaveBeenCalledWith(expect.stringMatching(new RegExp(`^${expectedPrefix}`)));
     });
   });
 
