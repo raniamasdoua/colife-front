@@ -3,7 +3,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { http, HttpResponse } from "msw";
-import type { ReactNode } from "react";
 import { server } from "../../../test/msw/server";
 import { FUTURE_ACTIVITY } from "../../../test/msw/handlers";
 
@@ -14,12 +13,6 @@ vi.mock("../../../auth/oidcConfig", () => ({
   setLoginTrigger: vi.fn(),
   setLogoutTrigger: vi.fn(),
   requireLogin: vi.fn(),
-}));
-
-vi.mock("../../../components/admin/AdminLayout", () => ({
-  AdminLayout: ({ children }: { children: ReactNode }) => (
-    <div data-testid="admin-layout">{children}</div>
-  ),
 }));
 
 vi.mock("../../../components/EditActivityModal", () => ({

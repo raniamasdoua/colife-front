@@ -1,15 +1,18 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "react-oidc-context";
 
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
+import { CollaboratorLayout } from "./components/layout/CollaboratorLayout";
+import { AdminLayout } from "./components/admin/AdminLayout";
 import { CreateActivityModalProvider } from "./context/CreateActivityModalContext";
-import { oidcConfig, setAccessToken, setLoginTrigger, setLogoutTrigger } from "./auth/oidcConfig";
+import { oidcConfig, requireLogout, setAccessToken, setLoginTrigger, setLogoutTrigger } from "./auth/oidcConfig";
 
 const HomePage = lazy(() => import("./pages/HomePage").then((m) => ({ default: m.HomePage })));
 const PlanningPage = lazy(() => import("./pages/PlanningPage").then((m) => ({ default: m.PlanningPage })));
 const ExplorePage = lazy(() => import("./pages/ExplorePage").then((m) => ({ default: m.ExplorePage })));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage").then((m) => ({ default: m.NotificationsPage })));
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
 const WelcomePage = lazy(() => import("./pages/WelcomePage").then((m) => ({ default: m.WelcomePage })));
 const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage").then((m) => ({ default: m.AdminDashboardPage })));
@@ -21,9 +24,13 @@ const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage").then((m
 function AuthBridge() {
   const auth = useAuth();
 
-  useEffect(() => {
-    setAccessToken(auth.user?.access_token ?? null);
-  }, [auth.user?.access_token]);
+  // Synchrone (pas un useEffect) : le rendu précède toujours les effets, donc le
+  // token est garanti à jour avant que le moindre useEffect enfant (ex. le
+  // chargement des données de /home juste après le login) ne déclenche un fetch.
+  // Avec un useEffect ici, HomePage pouvait monter et lancer son premier appel API
+  // avant que ce composant n'ait eu la main pour poser le token — requête sans
+  // Authorization, 401, déconnexion immédiate et retour sur /welcome.
+  setAccessToken(auth.user?.access_token ?? null);
 
   useEffect(() => {
     setLoginTrigger(() => {
@@ -36,6 +43,18 @@ function AuthBridge() {
       void auth.removeUser();
     });
   }, [auth]);
+
+  // Le renouvellement silencieux (automaticSilentRenew) échoue quand le refresh token
+  // n'est plus valide (typiquement : session Keycloak déjà expirée côté serveur). Dans
+  // ce cas la session applicative est irrécupérable : on nettoie l'état local pour que
+  // l'utilisateur retombe proprement sur /welcome plutôt que de rester avec un token
+  // mort et des appels API qui échouent en boucle.
+  useEffect(() => {
+    return auth.events.addSilentRenewError((error) => {
+      console.error("Échec du renouvellement de session, déconnexion locale :", error);
+      requireLogout();
+    });
+  }, [auth.events]);
 
   return null;
 }
@@ -50,17 +69,30 @@ function FullScreenLoader() {
 
 function AppContent() {
   const auth = useAuth();
+  const retriedStaleState = useRef(false);
+
+  const isStaleState = !!auth.error?.message.includes("No matching state found in storage");
+
+  // auth.clearStaleState()/signinRedirect() modifient l'état de AuthProvider : les
+  // déclencher directement dans le rendu de AppContent (un composant différent)
+  // n'est pas permis par React ("Cannot update a component while rendering a
+  // different component") et peut faire perdre la mise à jour. On le fait dans un
+  // effet, avec un garde-fou pour ne réessayer qu'une seule fois.
+  useEffect(() => {
+    if (isStaleState && !retriedStaleState.current) {
+      retriedStaleState.current = true;
+      auth.clearStaleState();
+      void auth.signinRedirect();
+    }
+  }, [isStaleState, auth]);
 
   if (auth.isLoading || auth.activeNavigator) {
     return <FullScreenLoader />;
   }
 
   if (auth.error) {
-    const isStaleState = auth.error.message.includes("No matching state found in storage");
     if (isStaleState) {
-      auth.clearStaleState();
-      void auth.signinRedirect();
-      return null;
+      return <FullScreenLoader />;
     }
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
@@ -83,79 +115,33 @@ function AppContent() {
         <Route path="/activities/new" element={<Navigate to="/home" replace />} />
 
         <Route
-          path="/home"
           element={
             <ProtectedRoute>
-              <HomePage />
+              <CollaboratorLayout />
             </ProtectedRoute>
           }
-        />
-        <Route
-          path="/planning"
-          element={
-            <ProtectedRoute>
-              <PlanningPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/explore"
-          element={
-            <ProtectedRoute>
-              <ExplorePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          }
-        />
+        >
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/planning" element={<PlanningPage />} />
+          <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+        </Route>
 
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route
-          path="/admin/dashboard"
           element={
             <AdminRoute>
-              <AdminDashboardPage />
+              <AdminLayout />
             </AdminRoute>
           }
-        />
-        <Route
-          path="/admin/activities"
-          element={
-            <AdminRoute>
-              <AdminActivitiesPage />
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/activity-types"
-          element={
-            <AdminRoute>
-              <AdminActivityTypesPage />
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <AdminRoute>
-              <AdminUsersPage />
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/profile"
-          element={
-            <AdminRoute>
-              <AdminProfilePage />
-            </AdminRoute>
-          }
-        />
+        >
+          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+          <Route path="/admin/activities" element={<AdminActivitiesPage />} />
+          <Route path="/admin/activity-types" element={<AdminActivityTypesPage />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/admin/profile" element={<AdminProfilePage />} />
+        </Route>
 
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>

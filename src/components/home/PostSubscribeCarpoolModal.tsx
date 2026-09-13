@@ -16,7 +16,11 @@ import {
 import { ApiRequestError } from "../../services/api";
 import type { ActivityResponse, CarpoolDetail, CarpoolPassengerSummary } from "../../types/activity";
 import { ActivityTimeSelect } from "../activity/ActivityTimeSelect";
-import { FORM_LABEL_CLASS, toBackendTime } from "../activity/activityFormUtils";
+import { OffSiteAddressFields } from "../activity/OffSiteAddressFields";
+import { FORM_LABEL_CLASS, formatCarpoolDeparture, toBackendTime } from "../activity/activityFormUtils";
+
+const inputClass =
+  "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50";
 
 function formatTime(t: string): string {
   return t.slice(0, 5);
@@ -117,6 +121,10 @@ function CarpoolOption({
         </div>
       </div>
 
+      <p className="text-[11px] text-slate-500 text-center">
+        Départ de : {formatCarpoolDeparture(carpool)}
+      </p>
+
       <PassengerList passengers={carpool.passengers} />
 
       <button
@@ -173,6 +181,10 @@ export function PostSubscribeCarpoolModal({
   const [proposeOpen, setProposeOpen] = useState(false);
   const [departureTime, setDepartureTime] = useState("");
   const [maxPassengers, setMaxPassengers] = useState("1");
+  const [street, setStreet] = useState("");
+  const [complement, setComplement] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [city, setCity] = useState("");
   const [proposeLoading, setProposeLoading] = useState(false);
   const [proposeError, setProposeError] = useState<string | null>(null);
 
@@ -190,6 +202,10 @@ export function PostSubscribeCarpoolModal({
     setProposeOpen(false);
     setDepartureTime("");
     setMaxPassengers("1");
+    setStreet("");
+    setComplement("");
+    setPostalCode("");
+    setCity("");
     setProposeError(null);
 
     getActivityCarpools(activity.id)
@@ -263,9 +279,20 @@ export function PostSubscribeCarpoolModal({
       setProposeError("L'heure de départ doit être avant le début de l'activité.");
       return;
     }
+    if (!street.trim() || !postalCode.trim() || !city.trim()) {
+      setProposeError("Le lieu de départ (adresse, code postal, ville) est obligatoire.");
+      return;
+    }
     setProposeLoading(true);
     try {
-      await createCarpoolAsSubscriber(activity.id, { departureTime: depTime, maxPassengers: maxP });
+      await createCarpoolAsSubscriber(activity.id, {
+        departureTime: depTime,
+        maxPassengers: maxP,
+        departureStreet: street.trim(),
+        departureComplement: complement.trim() || null,
+        departurePostalCode: postalCode.trim(),
+        departureCity: city.trim(),
+      });
       const fresh = await getActivityCarpools(activity.id);
       setCarpools(fresh.carpools);
       setUserRole("DRIVER");
@@ -420,6 +447,23 @@ export function PostSubscribeCarpoolModal({
                         className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50"
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className={FORM_LABEL_CLASS}>Lieu de départ *</p>
+                    <OffSiteAddressFields
+                      idPrefix="propose-departure-"
+                      street={street}
+                      complement={complement}
+                      postalCode={postalCode}
+                      city={city}
+                      disabled={proposeLoading}
+                      inputClass={inputClass}
+                      onStreetChange={setStreet}
+                      onComplementChange={setComplement}
+                      onPostalCodeChange={setPostalCode}
+                      onCityChange={setCity}
+                    />
                   </div>
 
                   {proposeError && (

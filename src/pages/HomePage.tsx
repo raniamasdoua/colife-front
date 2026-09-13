@@ -26,7 +26,6 @@ import { ActivityDetailModal } from "../components/home/ActivityDetailModal";
 import { PostSubscribeCarpoolModal } from "../components/home/PostSubscribeCarpoolModal";
 import { EditActivityModal } from "../components/EditActivityModal";
 import { MessageModal } from "../components/ui/MessageModal";
-import { CollaboratorLayout } from "../components/layout/CollaboratorLayout";
 import type { ActivityResponse } from "../types/activity";
 import { getTypeConfig } from "../utils/activityDisplay";
 import { shouldOfferCarpoolAfterSubscribe, SUBSCRIBE_SUCCESS_MESSAGE } from "../utils/subscribeMessages";
@@ -207,6 +206,11 @@ export function HomePage() {
       "Votre désinscription a bien été enregistrée. L'activité réapparaîtra parmi les disponibles si des places sont libres."
     );
     setRegisteredActivities((prev) => prev.filter((a) => a.id !== updated.id));
+    setAvailableActivities((prev) =>
+      prev.some((a) => a.id === updated.id)
+        ? prev.map((a) => (a.id === updated.id ? updated : a))
+        : [...prev, updated]
+    );
     setDetail((prev) => (prev?.id === updated.id ? null : prev));
     setDetailOpen(false);
   }, []);
@@ -289,7 +293,7 @@ export function HomePage() {
 
 
   return (
-    <CollaboratorLayout>
+    <>
       <div className="space-y-6 pb-4">
         <HomeWelcomeSection
           firstName={firstName}
@@ -759,6 +763,6 @@ export function HomePage() {
         message={unsubscribeErrorMessage ?? ""}
         onClose={() => setUnsubscribeErrorMessage(null)}
       />
-    </CollaboratorLayout>
+    </>
   );
 }

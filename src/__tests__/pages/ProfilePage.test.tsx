@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import type { ReactNode } from "react";
 
 vi.mock("react-oidc-context", () => ({
   useAuth: vi.fn().mockReturnValue({
@@ -20,15 +19,10 @@ vi.mock("../../auth/oidcConfig", () => ({
   setLoginTrigger: vi.fn(),
   setLogoutTrigger: vi.fn(),
   requireLogin: vi.fn(),
-  keycloakAccountUrl: vi.fn().mockReturnValue("http://localhost:8081/account"),
+  changePasswordRedirect: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../../components/layout/CollaboratorLayout", () => ({
-  CollaboratorLayout: ({ children }: { children: ReactNode }) => (
-    <div data-testid="layout">{children}</div>
-  ),
-}));
-
+import { changePasswordRedirect } from "../../auth/oidcConfig";
 import { ProfilePage } from "../../pages/ProfilePage";
 
 function renderPage() {
@@ -132,52 +126,11 @@ describe("ProfilePage", () => {
     });
   });
 
-  it("ouvre la boîte de dialogue de suppression de compte", async () => {
+  it("déclenche le flow de changement de mot de passe Keycloak au clic sur Changer le mot de passe", async () => {
     const user = userEvent.setup();
-    renderPage();
-    await screen.findByText("Alice Martin");
-    await user.click(screen.getByRole("button", { name: /supprimer mon compte/i }));
-    expect(screen.getAllByText(/supprimer définitivement/i).length).toBeGreaterThan(0);
-  });
-
-  it("ferme le dialogue de suppression via Annuler", async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await screen.findByText("Alice Martin");
-    await user.click(screen.getByRole("button", { name: /supprimer mon compte/i }));
-    await screen.findByText(/supprimer définitivement votre compte/i);
-    const cancelBtns = screen.getAllByRole("button", { name: /annuler/i });
-    await user.click(cancelBtns[cancelBtns.length - 1]);
-    await waitFor(() => {
-      expect(screen.queryByText(/supprimer définitivement votre compte/i)).not.toBeInTheDocument();
-    });
-  });
-
-  it("supprime le compte après saisie de SUPPRIMER", async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await screen.findByText("Alice Martin");
-    await user.click(screen.getByRole("button", { name: /supprimer mon compte/i }));
-    await screen.findByText(/supprimer définitivement votre compte/i);
-    await user.type(screen.getByPlaceholderText("SUPPRIMER"), "SUPPRIMER");
-    const deleteConfirmBtns = screen.getAllByRole("button", { name: /supprimer définitivement/i });
-    await user.click(deleteConfirmBtns[deleteConfirmBtns.length - 1]);
-    await waitFor(() => {
-      expect(screen.queryByText(/supprimer définitivement votre compte/i)).not.toBeInTheDocument();
-    });
-  });
-
-  it("ouvre l'URL Keycloak au clic sur Changer le mot de passe", async () => {
-    const user = userEvent.setup();
-    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     renderPage();
     await screen.findByText("Alice Martin");
     await user.click(screen.getByRole("button", { name: /changer le mot de passe/i }));
-    expect(openSpy).toHaveBeenCalledWith(
-      "http://localhost:8081/account",
-      "_blank",
-      "noopener,noreferrer"
-    );
-    openSpy.mockRestore();
+    expect(changePasswordRedirect).toHaveBeenCalled();
   });
 });

@@ -7,14 +7,14 @@ describe("ActivityTimeSelect", () => {
   describe("affichage initial", () => {
     it("affiche les heures et minutes du value fourni", () => {
       render(<ActivityTimeSelect idPrefix="test" value="08:30" onChange={vi.fn()} />);
-      expect(screen.getByText("08")).toBeInTheDocument();
-      expect(screen.getByText("30")).toBeInTheDocument();
+      expect(screen.getByLabelText("Heures")).toHaveValue("08");
+      expect(screen.getByLabelText("Minutes")).toHaveValue("30");
     });
 
-    it("affiche '--' pour les heures et minutes quand le value est vide", () => {
+    it("affiche des champs vides pour les heures et minutes quand le value est vide", () => {
       render(<ActivityTimeSelect idPrefix="test" value="" onChange={vi.fn()} />);
-      const dashes = screen.getAllByText("--");
-      expect(dashes).toHaveLength(2);
+      expect(screen.getByLabelText("Heures")).toHaveValue("");
+      expect(screen.getByLabelText("Minutes")).toHaveValue("");
     });
 
     it("rend 4 boutons (−h, +h, −m, +m)", () => {
@@ -54,32 +54,92 @@ describe("ActivityTimeSelect", () => {
   });
 
   describe("stepper minutes", () => {
-    it("incrémente les minutes par palier de 5", async () => {
+    it("incrémente les minutes une par une", async () => {
       const onChange = vi.fn();
       render(<ActivityTimeSelect idPrefix="test" value="08:30" onChange={onChange} />);
       await userEvent.click(screen.getByRole("button", { name: "Augmenter les minutes" }));
-      expect(onChange).toHaveBeenCalledWith("08:35");
+      expect(onChange).toHaveBeenCalledWith("08:31");
     });
 
-    it("décrémente les minutes par palier de 5", async () => {
+    it("décrémente les minutes une par une", async () => {
       const onChange = vi.fn();
       render(<ActivityTimeSelect idPrefix="test" value="08:30" onChange={onChange} />);
       await userEvent.click(screen.getByRole("button", { name: "Diminuer les minutes" }));
-      expect(onChange).toHaveBeenCalledWith("08:25");
+      expect(onChange).toHaveBeenCalledWith("08:29");
     });
 
-    it("effectue un wrap 55 → 00", async () => {
+    it("effectue un wrap 59 → 00", async () => {
       const onChange = vi.fn();
-      render(<ActivityTimeSelect idPrefix="test" value="08:55" onChange={onChange} />);
+      render(<ActivityTimeSelect idPrefix="test" value="08:59" onChange={onChange} />);
       await userEvent.click(screen.getByRole("button", { name: "Augmenter les minutes" }));
       expect(onChange).toHaveBeenCalledWith("08:00");
     });
 
-    it("effectue un wrap 00 → 55", async () => {
+    it("effectue un wrap 00 → 59", async () => {
       const onChange = vi.fn();
       render(<ActivityTimeSelect idPrefix="test" value="08:00" onChange={onChange} />);
       await userEvent.click(screen.getByRole("button", { name: "Diminuer les minutes" }));
-      expect(onChange).toHaveBeenCalledWith("08:55");
+      expect(onChange).toHaveBeenCalledWith("08:59");
+    });
+  });
+
+  describe("saisie au clavier", () => {
+    it("met à jour l'heure quand on tape une valeur puis quitte le champ", async () => {
+      const onChange = vi.fn();
+      render(<ActivityTimeSelect idPrefix="test" value="08:30" onChange={onChange} />);
+      const hourInput = screen.getByLabelText("Heures");
+      await userEvent.clear(hourInput);
+      await userEvent.type(hourInput, "14");
+      await userEvent.tab();
+      expect(onChange).toHaveBeenCalledWith("14:30");
+    });
+
+    it("met à jour les minutes quand on tape une valeur puis quitte le champ", async () => {
+      const onChange = vi.fn();
+      render(<ActivityTimeSelect idPrefix="test" value="08:30" onChange={onChange} />);
+      const minuteInput = screen.getByLabelText("Minutes");
+      await userEvent.clear(minuteInput);
+      await userEvent.type(minuteInput, "7");
+      await userEvent.tab();
+      expect(onChange).toHaveBeenCalledWith("08:07");
+    });
+
+    it("plafonne l'heure saisie à 23", async () => {
+      const onChange = vi.fn();
+      render(<ActivityTimeSelect idPrefix="test" value="08:30" onChange={onChange} />);
+      const hourInput = screen.getByLabelText("Heures");
+      await userEvent.clear(hourInput);
+      await userEvent.type(hourInput, "99");
+      await userEvent.tab();
+      expect(onChange).toHaveBeenCalledWith("23:30");
+    });
+
+    it("plafonne les minutes saisies à 59", async () => {
+      const onChange = vi.fn();
+      render(<ActivityTimeSelect idPrefix="test" value="08:30" onChange={onChange} />);
+      const minuteInput = screen.getByLabelText("Minutes");
+      await userEvent.clear(minuteInput);
+      await userEvent.type(minuteInput, "99");
+      await userEvent.tab();
+      expect(onChange).toHaveBeenCalledWith("08:59");
+    });
+
+    it("ignore les caractères non numériques saisis", async () => {
+      const onChange = vi.fn();
+      render(<ActivityTimeSelect idPrefix="test" value="08:30" onChange={onChange} />);
+      const hourInput = screen.getByLabelText("Heures");
+      await userEvent.clear(hourInput);
+      await userEvent.type(hourInput, "ab");
+      expect(hourInput).toHaveValue("");
+    });
+
+    it("revient à la valeur précédente si le champ est vidé puis quitté", async () => {
+      const onChange = vi.fn();
+      render(<ActivityTimeSelect idPrefix="test" value="08:30" onChange={onChange} />);
+      const hourInput = screen.getByLabelText("Heures");
+      await userEvent.clear(hourInput);
+      await userEvent.tab();
+      expect(onChange).toHaveBeenCalledWith("08:30");
     });
   });
 

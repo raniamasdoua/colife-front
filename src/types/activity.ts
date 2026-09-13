@@ -13,6 +13,10 @@ export type CarpoolUserRole = "DRIVER" | "PASSENGER" | "NONE";
 export interface CarpoolRequest {
   departureTime: string;
   maxPassengers: number;
+  departureStreet: string;
+  departureComplement?: string | null;
+  departurePostalCode: string;
+  departureCity: string;
 }
 
 export interface CarpoolResponse {
@@ -22,6 +26,10 @@ export interface CarpoolResponse {
   driverId: string;
   departureTime: string;
   maxPassengers: number;
+  departureStreet: string;
+  departureComplement: string | null;
+  departurePostalCode: string;
+  departureCity: string;
 }
 
 export interface CarpoolPassengerSummary {
@@ -43,6 +51,10 @@ export interface CarpoolDetail {
   availableSeats: number;
   status: CarpoolStatus;
   passengers: CarpoolPassengerSummary[];
+  departureStreet: string;
+  departureComplement: string | null;
+  departurePostalCode: string;
+  departureCity: string;
 }
 
 /** Réponse de GET /activities/{id}/carpools */
@@ -89,6 +101,7 @@ export interface CreateActivityPayload {
   };
   locationType?: LocationType;
   carpool?: CarpoolRequest | null;
+  materials?: MaterialRequest[] | null;
 }
 
 export interface ActivityParticipant {
@@ -120,5 +133,28 @@ export interface ActivityResponse {
   deleted?: boolean;
   locationType: LocationType;
   carpool: CarpoolResponse | null;
+  /** Matériel proposé, en lecture seule (pas de notion de "mine" ici — voir MaterialSection). */
+  materials: MaterialResponse[];
+}
+
+export interface UserActivities {
+  organized: ActivityResponse[];
+  registered: ActivityResponse[];
+}
+
+export interface MaterialRequest {
+  description: string;
+  quantity: number;
+}
+
+export interface MaterialResponse {
+  id: number;
+  activityId: number;
+  proposedByName: string;
+  /** true si l'utilisateur connecté est l'auteur de la proposition. */
+  mine: boolean;
+  description: string;
+  quantity: number;
+  createdAt: string;
 }
 

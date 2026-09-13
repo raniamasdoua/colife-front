@@ -13,18 +13,15 @@ import {
   Shield,
   Activity,
   Users,
-  AlertTriangle,
   LogOut,
 } from "lucide-react";
 import { getInitials } from "../utils/userDisplay";
 import { getMe, updateProfile } from "../services/userService";
 import { getMyActivities, getRegisteredActivities } from "../services/activityService";
 import { isActivityNoLongerEditable } from "../utils/activitySchedule";
-import { keycloakAccountUrl } from "../auth/oidcConfig";
+import { changePasswordRedirect } from "../auth/oidcConfig";
 import type { UserProfile } from "../types/auth";
-import { CollaboratorLayout } from "../components/layout/CollaboratorLayout";
 
-// ── Inline Toggle (Switch) ────────────────────────────────────────────────────
 function Toggle({
   checked,
   onChange,
@@ -51,7 +48,6 @@ function Toggle({
   );
 }
 
-// ── Toast Notification ────────────────────────────────────────────────────────
 function Toast({
   message,
   type,
@@ -70,7 +66,6 @@ function Toast({
   );
 }
 
-// ── Modal overlay ─────────────────────────────────────────────────────────────
 function Modal({
   open,
   onClose,
@@ -97,7 +92,6 @@ function Modal({
   );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("fr-FR", {
     month: "long",
@@ -106,11 +100,9 @@ function formatDate(iso: string): string {
 }
 
 type ProfilePageProps = {
-  /** Affichage dans le shell admin (sans fond plein écran ni bandeau dupliqué) */
   adminShell?: boolean;
 };
 
-// ── ProfilePage ───────────────────────────────────────────────────────────────
 export function ProfilePage({ adminShell = false }: ProfilePageProps) {
   const auth = useAuth();
 
@@ -139,10 +131,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     activityUpdates: true,
   });
 
-  // Delete dialog
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deleteConfirmation, setDeleteConfirmation] = useState("");
-
   // Logout dialog
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
@@ -160,7 +148,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     []
   );
 
-  // ── Fetch profile on mount ──────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -185,7 +172,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     };
   }, []);
 
-  // ── Fetch activity stats ────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     setStatsLoading(true);
@@ -212,7 +198,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
     return () => { cancelled = true; };
   }, []);
 
-  // ── Save profile ────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!profile) return;
     if (phoneError) return;
@@ -245,29 +230,16 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
 
   // ── Change password ─────────────────────────────────────────────────────────
   // La gestion du mot de passe est déléguée à Keycloak (migration OIDC) : on
-  // ouvre la console « Mon compte » dans un nouvel onglet.
+  // déclenche directement le formulaire de mise à jour, sans passer par la
+  // console « Mon compte » complète.
   const handleChangePassword = () => {
-    window.open(keycloakAccountUrl(), "_blank", "noopener,noreferrer");
+    void changePasswordRedirect();
   };
 
-  // ── Delete account ──────────────────────────────────────────────────────────
-  const handleDeleteAccount = () => {
-    if (deleteConfirmation !== "SUPPRIMER") {
-      showToast("Veuillez taper SUPPRIMER pour confirmer", "error");
-      return;
-    }
-    showToast("Votre compte a été supprimé", "success");
-    setShowDeleteDialog(false);
-    handleLogout();
-  };
-
-  // ── Logout ──────────────────────────────────────────────────────────────────
   const handleLogout = () => {
-    // Déconnexion Keycloak (révoque la session et nettoie les tokens locaux).
     void auth.signoutRedirect();
   };
 
-  // ── Render states ───────────────────────────────────────────────────────────
   if (isLoading) {
     const spinner = (
       <div className="flex items-center justify-center py-20">
@@ -277,7 +249,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
         </div>
       </div>
     );
-    return adminShell ? spinner : <CollaboratorLayout>{spinner}</CollaboratorLayout>;
+    return spinner;
   }
 
   if (loadError || !profile) {
@@ -294,7 +266,7 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
         </div>
       </div>
     );
-    return adminShell ? err : <CollaboratorLayout>{err}</CollaboratorLayout>;
+    return err;
   }
 
   const stats = [
@@ -623,16 +595,6 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
                   </div>
                   Se déconnecter
                 </button>
-
-                <button
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="w-full flex items-center gap-3 px-4 py-3 border-2 border-red-100 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 hover:border-red-200 transition"
-                >
-                  <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                    <AlertTriangle className="w-4 h-4 text-red-600" />
-                  </div>
-                  Supprimer mon compte
-                </button>
               </div>
             </div>
           </div>
@@ -673,73 +635,8 @@ export function ProfilePage({ adminShell = false }: ProfilePageProps) {
         </div>
       </Modal>
 
-      {/* ── Delete account dialog ── */}
-      <Modal
-        open={showDeleteDialog}
-        onClose={() => {
-          setShowDeleteDialog(false);
-          setDeleteConfirmation("");
-        }}
-      >
-        <div className="flex items-center gap-2 mb-2">
-          <AlertTriangle className="w-5 h-5 text-red-600" />
-          <h2 className="text-lg font-bold text-red-600">
-            Supprimer définitivement votre compte ?
-          </h2>
-        </div>
-        <p className="text-sm text-gray-500 mb-4">
-          Cette action est irréversible. Toutes vos données seront définitivement
-          supprimées.
-        </p>
-
-        <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 mb-4">
-          <li>Vos activités organisées</li>
-          <li>Vos inscriptions aux activités</li>
-          <li>Votre profil et vos informations personnelles</li>
-          <li>Tout votre historique</li>
-        </ul>
-
-        <div className="mb-5">
-          <label className="block text-xs font-semibold text-gray-700 mb-1">
-            Pour confirmer, tapez{" "}
-            <span className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded font-mono">
-              SUPPRIMER
-            </span>
-          </label>
-          <input
-            type="text"
-            value={deleteConfirmation}
-            onChange={(e) => setDeleteConfirmation(e.target.value)}
-            placeholder="SUPPRIMER"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
-          />
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              setShowDeleteDialog(false);
-              setDeleteConfirmation("");
-            }}
-            className="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handleDeleteAccount}
-            disabled={deleteConfirmation !== "SUPPRIMER"}
-            className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Supprimer définitivement
-          </button>
-        </div>
-      </Modal>
     </>
   );
 
-  return adminShell ? (
-    <div className="w-full">{mainContent}</div>
-  ) : (
-    <CollaboratorLayout>{mainContent}</CollaboratorLayout>
-  );
+  return <div className="w-full">{mainContent}</div>;
 }

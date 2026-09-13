@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import type { ReactNode } from "react";
 
 vi.mock("../../auth/oidcConfig", () => ({
   getAccessToken: vi.fn().mockReturnValue("test-token"),
@@ -11,12 +10,6 @@ vi.mock("../../auth/oidcConfig", () => ({
   setLoginTrigger: vi.fn(),
   setLogoutTrigger: vi.fn(),
   requireLogin: vi.fn(),
-}));
-
-vi.mock("../../components/layout/CollaboratorLayout", () => ({
-  CollaboratorLayout: ({ children }: { children: ReactNode }) => (
-    <div data-testid="layout">{children}</div>
-  ),
 }));
 
 import { ExplorePage } from "../../pages/ExplorePage";

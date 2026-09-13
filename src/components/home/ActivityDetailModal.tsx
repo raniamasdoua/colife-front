@@ -40,8 +40,11 @@ import type {
 import { isActivityNoLongerEditable } from "../../utils/activitySchedule";
 import { shouldOfferCarpoolAfterSubscribe } from "../../utils/subscribeMessages";
 import { MessageModal } from "../ui/MessageModal";
+import { MaterialSection } from "./MaterialSection";
 import { PostSubscribeCarpoolModal } from "./PostSubscribeCarpoolModal";
 import { ActivityTimeSelect } from "../activity/ActivityTimeSelect";
+import { OffSiteAddressFields } from "../activity/OffSiteAddressFields";
+import { formatCarpoolDeparture } from "../activity/activityFormUtils";
 import { formatDateLong, formatTime, toActivityInitials } from "../../utils/activityFormatters";
 
 const inputClass =
@@ -109,10 +112,18 @@ export function ActivityDetailModal({
   const [showCreateCarpool, setShowCreateCarpool] = useState(false);
   const [cpDepartureTime, setCpDepartureTime] = useState("");
   const [cpMaxPassengers, setCpMaxPassengers] = useState("");
+  const [cpStreet, setCpStreet] = useState("");
+  const [cpComplement, setCpComplement] = useState("");
+  const [cpPostalCode, setCpPostalCode] = useState("");
+  const [cpCity, setCpCity] = useState("");
   /* Edit / cancel own carpool (DRIVER) */
   const [carpoolEditing, setCarpoolEditing] = useState(false);
   const [carpoolEditDeparture, setCarpoolEditDeparture] = useState("");
   const [carpoolEditMax, setCarpoolEditMax] = useState("");
+  const [carpoolEditStreet, setCarpoolEditStreet] = useState("");
+  const [carpoolEditComplement, setCarpoolEditComplement] = useState("");
+  const [carpoolEditPostalCode, setCarpoolEditPostalCode] = useState("");
+  const [carpoolEditCity, setCarpoolEditCity] = useState("");
   const [carpoolEditLoading, setCarpoolEditLoading] = useState(false);
   const [carpoolEditError, setCarpoolEditError] = useState<string | null>(null);
   const [carpoolCancelLoading, setCarpoolCancelLoading] = useState(false);
@@ -141,9 +152,17 @@ export function ActivityDetailModal({
       setShowCreateCarpool(false);
       setCpDepartureTime("");
       setCpMaxPassengers("");
+      setCpStreet("");
+      setCpComplement("");
+      setCpPostalCode("");
+      setCpCity("");
       setCarpoolEditing(false);
       setCarpoolEditDeparture("");
       setCarpoolEditMax("");
+      setCarpoolEditStreet("");
+      setCarpoolEditComplement("");
+      setCarpoolEditPostalCode("");
+      setCarpoolEditCity("");
       setCarpoolEditError(null);
       setCarpoolCancelLoading(false);
     }
@@ -194,6 +213,10 @@ export function ActivityDetailModal({
         if (myCarpool) {
           setCarpoolEditDeparture(myCarpool.departureTime.slice(0, 5));
           setCarpoolEditMax(String(myCarpool.maxPassengers));
+          setCarpoolEditStreet(myCarpool.departureStreet ?? "");
+          setCarpoolEditComplement(myCarpool.departureComplement ?? "");
+          setCarpoolEditPostalCode(myCarpool.departurePostalCode ?? "");
+          setCarpoolEditCity(myCarpool.departureCity ?? "");
         }
       })
       .catch((e) => {
@@ -343,15 +366,27 @@ export function ActivityDetailModal({
       setCarpoolActionError("Le nombre de places passagers doit être supérieur ou égal à 1.");
       return;
     }
+    if (!cpStreet.trim() || !cpPostalCode.trim() || !cpCity.trim()) {
+      setCarpoolActionError("Le lieu de départ (adresse, code postal, ville) est obligatoire.");
+      return;
+    }
     setCarpoolActionLoading(true);
     try {
       await createCarpoolAsSubscriber(localActivity.id, {
         departureTime: cpDepartureTime + ":00",
         maxPassengers: maxP,
+        departureStreet: cpStreet.trim(),
+        departureComplement: cpComplement.trim() || null,
+        departurePostalCode: cpPostalCode.trim(),
+        departureCity: cpCity.trim(),
       });
       setShowCreateCarpool(false);
       setCpDepartureTime("");
       setCpMaxPassengers("");
+      setCpStreet("");
+      setCpComplement("");
+      setCpPostalCode("");
+      setCpCity("");
       loadCarpools(localActivity.id);
     } catch (e) {
       setCarpoolActionError(e instanceof ApiRequestError ? e.message : "Impossible de proposer ce covoiturage.");
@@ -383,11 +418,19 @@ export function ActivityDetailModal({
       setCarpoolEditError("L'heure de départ doit être avant le début de l'activité.");
       return;
     }
+    if (!carpoolEditStreet.trim() || !carpoolEditPostalCode.trim() || !carpoolEditCity.trim()) {
+      setCarpoolEditError("Le lieu de départ (adresse, code postal, ville) est obligatoire.");
+      return;
+    }
     setCarpoolEditLoading(true);
     try {
       await updateCarpool(localActivity.id, carpoolId, {
         departureTime: depTime,
         maxPassengers: maxP,
+        departureStreet: carpoolEditStreet.trim(),
+        departureComplement: carpoolEditComplement.trim() || null,
+        departurePostalCode: carpoolEditPostalCode.trim(),
+        departureCity: carpoolEditCity.trim(),
       });
       setCarpoolEditing(false);
       loadCarpools(localActivity.id);
@@ -469,6 +512,9 @@ export function ActivityDetailModal({
                           <p className="text-sm font-bold text-slate-800">{c.availableSeats}</p>
                         </div>
                       </div>
+                      <p className="text-[11px] text-slate-500 text-center">
+                        Départ de : {formatCarpoolDeparture(c)}
+                      </p>
                       <PassengerList passengers={c.passengers} emptyLabel="Aucun passager pour l'instant." />
 
                       {!activityIsPast && !carpoolEditing && (
@@ -480,6 +526,10 @@ export function ActivityDetailModal({
                               setCarpoolEditError(null);
                               setCarpoolEditDeparture(c.departureTime.slice(0, 5));
                               setCarpoolEditMax(String(c.maxPassengers));
+                              setCarpoolEditStreet(c.departureStreet ?? "");
+                              setCarpoolEditComplement(c.departureComplement ?? "");
+                              setCarpoolEditPostalCode(c.departurePostalCode ?? "");
+                              setCarpoolEditCity(c.departureCity ?? "");
                             }}
                             disabled={carpoolCancelLoading || carpoolActionLoading}
                             className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-violet-300 bg-white py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 transition disabled:opacity-50"
@@ -529,6 +579,22 @@ export function ActivityDetailModal({
                               />
                             </div>
                           </div>
+                          <div className="space-y-2">
+                            <p className={labelClass}>Lieu de départ *</p>
+                            <OffSiteAddressFields
+                              idPrefix="detail-carpool-edit-"
+                              street={carpoolEditStreet}
+                              complement={carpoolEditComplement}
+                              postalCode={carpoolEditPostalCode}
+                              city={carpoolEditCity}
+                              disabled={carpoolEditLoading}
+                              inputClass={inputClass}
+                              onStreetChange={setCarpoolEditStreet}
+                              onComplementChange={setCarpoolEditComplement}
+                              onPostalCodeChange={setCarpoolEditPostalCode}
+                              onCityChange={setCarpoolEditCity}
+                            />
+                          </div>
                           {c.passengerCount > 0 && (
                             <p className="text-[11px] text-slate-500">
                               Minimum {c.passengerCount} place{c.passengerCount > 1 ? "s" : ""} (passagers déjà inscrits).
@@ -550,6 +616,10 @@ export function ActivityDetailModal({
                                 setCarpoolEditError(null);
                                 setCarpoolEditDeparture(c.departureTime.slice(0, 5));
                                 setCarpoolEditMax(String(c.maxPassengers));
+                                setCarpoolEditStreet(c.departureStreet ?? "");
+                                setCarpoolEditComplement(c.departureComplement ?? "");
+                                setCarpoolEditPostalCode(c.departurePostalCode ?? "");
+                                setCarpoolEditCity(c.departureCity ?? "");
                               }}
                               disabled={carpoolEditLoading}
                               className="flex-1 rounded-lg border border-gray-200 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
@@ -595,6 +665,9 @@ export function ActivityDetailModal({
                           <p className="text-sm font-bold text-slate-800">{formatTime(c.departureTime)}</p>
                         </div>
                       </div>
+                      <p className="text-[11px] text-slate-500 text-center">
+                        Départ de : {formatCarpoolDeparture(c)}
+                      </p>
                       <PassengerList
                         passengers={c.passengers}
                         emptyLabel="Aucun autre passager pour l'instant."
@@ -685,6 +758,22 @@ export function ActivityDetailModal({
                               disabled={carpoolActionLoading}
                             />
                           </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className={labelClass}>Lieu de départ *</p>
+                          <OffSiteAddressFields
+                            idPrefix="detail-carpool-new-"
+                            street={cpStreet}
+                            complement={cpComplement}
+                            postalCode={cpPostalCode}
+                            city={cpCity}
+                            disabled={carpoolActionLoading}
+                            inputClass={inputClass}
+                            onStreetChange={setCpStreet}
+                            onComplementChange={setCpComplement}
+                            onPostalCodeChange={setCpPostalCode}
+                            onCityChange={setCpCity}
+                          />
                         </div>
                         <p className="text-[11px] text-slate-500">
                           L&apos;heure de départ doit être avant le début de l&apos;activité ({formatTime(localActivity.startTime)}).
@@ -864,6 +953,9 @@ export function ActivityDetailModal({
 
             {/* Carpool section */}
             {renderCarpoolSection()}
+
+            {/* Material section */}
+            <MaterialSection activityId={localActivity.id} disabled={activityIsPast} canPropose={isUserSubscribed} />
 
             {/* Participants */}
             <div>
@@ -1131,6 +1223,9 @@ function CarpoolCard({
             <span className={carpool.availableSeats === 0 ? "text-red-500 font-medium" : "text-emerald-600 font-medium"}>
               {carpool.availableSeats === 0 ? "Complet" : `${carpool.availableSeats} place${carpool.availableSeats > 1 ? "s" : ""} dispo`}
             </span>
+          </p>
+          <p className="text-[11px] text-slate-400 truncate">
+            Départ de : {formatCarpoolDeparture(carpool)}
           </p>
         </div>
         <button

@@ -12,10 +12,6 @@ const scope = "openid profile email";
 const stateStore = new WebStorageStateStore({ store: window.localStorage });
 const userStore = new WebStorageStateStore({ store: window.localStorage });
 
-/**
- * Configuration du client OIDC (Keycloak) — flow Authorization Code + PKCE.
- * Les tokens (access + refresh) sont gérés et rafraîchis automatiquement par la lib.
- */
 export const oidcConfig: AuthProviderProps = {
   authority,
   client_id: clientId,
@@ -25,21 +21,16 @@ export const oidcConfig: AuthProviderProps = {
   userStore,
   stateStore,
   monitorSession: false,
-  automaticSilentRenew: false,
+  // Renouvellement automatique du token d'accès (900s de durée de vie côté Keycloak)
+  // via le refresh token, en arrière-plan, avant son expiration — sans quoi la session
+  // applicative meurt après 15 min alors que la session Keycloak (SSO) reste active
+  // jusqu'à 30 min/10h (cf. AuthBridge dans App.tsx pour la gestion de l'échec).
+  automaticSilentRenew: true,
   onSigninCallback: () => {
     window.history.replaceState({}, document.title, window.location.pathname);
   },
 };
 
-/**
- * Redirige directement vers le FORMULAIRE D'INSCRIPTION de Keycloak.
- *
- * Keycloak n'expose pas l'inscription via un simple paramètre sur l'endpoint
- * d'autorisation ; on génère donc un vrai signin request (state + PKCE, stockés
- * dans le même {@link stateStore} que l'AuthProvider) puis on bascule l'URL de
- * `/protocol/openid-connect/auth` vers `/protocol/openid-connect/registrations`.
- * Au retour, react-oidc-context retrouve le state et échange le code normalement.
- */
 const registerClient = new OidcClient({
   authority,
   client_id: clientId,
@@ -49,15 +40,21 @@ const registerClient = new OidcClient({
 });
 
 /**
- * URL de la console « Mon compte » de Keycloak.
+ * Déclenche directement le formulaire Keycloak de changement de mot de passe
+ * (Application Initiated Action `kc_action=UPDATE_PASSWORD`), sans passer par
+ * la console « Mon compte » (qui exposerait tout un tas d'autres réglages).
  *
- * La gestion du mot de passe (et plus largement de l'identité) est déléguée à
- * Keycloak depuis la migration OIDC : le backend n'expose plus ce flux. L'écran
- * profil redirige donc l'utilisateur vers cette console. L'authority est de la
- * forme `https://host/realms/{realm}` → la console est servie sous `/account`.
+ * La gestion du mot de passe est déléguée à Keycloak depuis la migration OIDC :
+ * le backend n'expose plus ce flux. Le flow réutilise le client OIDC de
+ * l'application (mêmes state/PKCE store que l'AuthProvider) : une fois le mot
+ * de passe mis à jour, Keycloak redirige directement vers l'application,
+ * plutôt que de laisser l'utilisateur dans la console Keycloak.
  */
-export function keycloakAccountUrl(): string {
-  return `${String(authority).replace(/\/$/, "")}/account/`;
+export async function changePasswordRedirect(): Promise<void> {
+  const request = await registerClient.createSigninRequest({ request_type: "si:r" });
+  const url = new URL(request.url);
+  url.searchParams.set("kc_action", "UPDATE_PASSWORD");
+  window.location.assign(url.toString());
 }
 
 export async function registerRedirect(): Promise<void> {
@@ -70,11 +67,6 @@ export async function registerRedirect(): Promise<void> {
   );
   window.location.assign(url);
 }
-
-/* ── Pont OIDC ↔ couche fetch (modules non-React) ────────────────────────────
- * api.ts n'est pas un composant React : il ne peut pas utiliser useAuth().
- * Le composant <AuthBridge/> (dans App.tsx) pousse ici le token courant et les
- * déclencheurs, que le wrapper fetch consomme. */
 
 let currentAccessToken: string | null = null;
 let loginTrigger: () => void = () => {};
